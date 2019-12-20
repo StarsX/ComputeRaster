@@ -59,73 +59,48 @@ void ComputeAABB(float4 primVPos[3], out uint2 minTile, out uint2 maxTile)
 }
 
 //--------------------------------------------------------------------------------------
-// Check if the tile is overlapped by a straight line with a certain thickness.
+// Move the vertex for conservative rasterization.
 //--------------------------------------------------------------------------------------
-bool IsOverlap(uint2 tile, float2 v[3])
+float2 Conserve(float2 pv, float2 cv, float2 nv)
 {
-	
+	float3 plane0 = cross(float3(cv - pv, 0.0), float3(pv, 1.0));
+	float3 plane1 = cross(float3(nv - cv, 0.0), float3(cv, 1.0));
+
+	plane0.z -= dot(0.5, abs(plane0.xy));
+	plane1.z -= dot(0.5, abs(plane1.xy));
+
+	const float3 result = cross(plane0, plane1);
+
+	return result.xy / result.z;
 }
 
 //--------------------------------------------------------------------------------------
-// Check if the tile is overlapped by a straight line with a certain thickness.
+// Move the vertices for conservative rasterization.
 //--------------------------------------------------------------------------------------
-bool Overlaps(uint2 tile, float4 primVPos[3])
+void Conserves(out float2 cv[3], float4 primVPos[3])
 {
 	float2 v[3];
 	[unroll]
 	for (uint i = 0; i < 3; ++i) v[i] = primVPos[i].xy / 8.0;
+	cv[0] = Conserve(v[2], v[0], v[1]);
+	cv[1] = Conserve(v[0], v[1], v[2]);
+	cv[2] = Conserve(v[1], v[2], v[0]);
+}
 
-	// Triangle edge equation setup.
-	const float a01 = v[0].y - v[1].y;
-	const float b01 = v[1].x - v[0].x;
-	const float a12 = v[1].y - v[2].y;
-	const float b12 = v[2].x - v[1].x;
-	const float a20 = v[2].y - v[0].y;
-	const float b20 = v[0].x - v[2].x;
 
-	// Calculate barycentric coordinates at min corner.
-	float3 w0, w;
-	const float2 minPoint = min(v[0], min(v[1], v[2]));
-	w0.x = determinant(v[1], v[2], minPoint);
-	w0.y = determinant(v[2], v[0], minPoint);
-	w0.z = determinant(v[0], v[1], minPoint);
-
+//--------------------------------------------------------------------------------------
+// Check if the tile is overlapped by a straight line with a certain thickness.
+//--------------------------------------------------------------------------------------
+bool Overlaps(float2 tile, float a01, float b01, float a12, float b12,
+	float a20, float b20, float2 minPoint, float3 w)
+{
 	// If pixel is inside of all edges, set pixel.
-	float2 dist = tile - minPoint;
-	w.x = (a12 * dist.x) + (b12 * dist.y);
-	w.y = (a20 * dist.x) + (b20 * dist.y);
-	w.z = (a01 * dist.x) + (b01 * dist.y);
-	w += w0;
-	bool isOverlap = w.x >= 0.0 && w.y >= 0.0 && w.z >= 0.0;
-	//isOverlap = isOverlap || (w.x <= 0.0 && w.y <= 0.0 && w.z <= 0.0);
+	float2 dist = tile + 0.5 - minPoint;
+	w.x += (a12 * dist.x) + (b12 * dist.y);
+	w.y += (a20 * dist.x) + (b20 * dist.y);
+	w.z += (a01 * dist.x) + (b01 * dist.y);
 
-	dist = tile + uint2(1, 0) - minPoint;
-	w.x = (a12 * dist.x) + (b12 * dist.y);
-	w.y = (a20 * dist.x) + (b20 * dist.y);
-	w.z = (a01 * dist.x) + (b01 * dist.y);
-	w += w0;
-	isOverlap = isOverlap || (w.x >= 0.0 && w.y >= 0.0 && w.z >= 0.0);
-	//isOverlap = isOverlap || (w.x <= 0.0 && w.y <= 0.0 && w.z <= 0.0);
-
-	dist = tile + uint2(0, 1) - minPoint;
-	w.x = (a12 * dist.x) + (b12 * dist.y);
-	w.y = (a20 * dist.x) + (b20 * dist.y);
-	w.z = (a01 * dist.x) + (b01 * dist.y);
-	w += w0;
-	isOverlap = isOverlap || (w.x >= 0.0 && w.y >= 0.0 && w.z >= 0.0);
-	//isOverlap = isOverlap || (w.x <= 0.0 && w.y <= 0.0 && w.z <= 0.0);
-
-	dist = tile + uint2(1, 1) - minPoint;
-	w.x = (a12 * dist.x) + (b12 * dist.y);
-	w.y = (a20 * dist.x) + (b20 * dist.y);
-	w.z = (a01 * dist.x) + (b01 * dist.y);
-	w += w0;
-	isOverlap = isOverlap || (w.x >= 0.0 && w.y >= 0.0 && w.z >= 0.0);
-	//isOverlap = isOverlap || (w.x <= 0.0 && w.y <= 0.0 && w.z <= 0.0);
-
-	const float area = determinant(v[0], v[1], v[2]);
-
-	return isOverlap || area < 1.0;
+	return  w.x >= 0.0 && w.y >= 0.0 && w.z >= 0.0;
 }
 
 //--------------------------------------------------------------------------------------
@@ -163,6 +138,25 @@ void BinPrimitive(float4 primVPos[3], uint primId)
 
 	const float nearestZ = min(primVPos[0].z, min(primVPos[1].z, primVPos[2].z));
 
+	// Move the vertices for conservative rasterization.
+	float2 v[3];
+	Conserves(v, primVPos);
+
+	// Triangle edge equation setup.
+	const float a01 = v[0].y - v[1].y;
+	const float b01 = v[1].x - v[0].x;
+	const float a12 = v[1].y - v[2].y;
+	const float b12 = v[2].x - v[1].x;
+	const float a20 = v[2].y - v[0].y;
+	const float b20 = v[0].x - v[2].x;
+
+	// Calculate barycentric coordinates at min corner.
+	float3 w;
+	const float2 minPoint = min(v[0], min(v[1], v[2]));
+	w.x = determinant(v[1], v[2], minPoint);
+	w.y = determinant(v[2], v[0], minPoint);
+	w.z = determinant(v[0], v[1], minPoint);
+
 	for (uint i = minTile.y; i <= maxTile.y; ++i)
 	{
 		uint2 scanLine = uint2(0xffffffff, 0);
@@ -173,7 +167,7 @@ void BinPrimitive(float4 primVPos[3], uint primId)
 			//if (g_txBinDepthMax[tile] <= nearestZ) continue; // Depth Test failed for this tile
 
 			// Tile overlap tests
-			if (Overlaps(tile, primVPos))
+			if (Overlaps(tile, a01, b01, a12, b12, a20, b20, minPoint, w))
 				scanLine.x = scanLine.x == 0xffffffff ? j : scanLine.x;
 			else scanLine.y = j;
 
