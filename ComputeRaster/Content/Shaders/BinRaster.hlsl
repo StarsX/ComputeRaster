@@ -160,6 +160,7 @@ void BinPrimitive(float4 primVPos[3], uint primId)
 	{
 		uint2 scanLine = uint2(0xffffffff, 0);
 
+		bool needBreak = false;
 		for (uint j = minTile.x; j <= maxTile.x; ++j)
 		{
 			const uint2 tile = uint2(j, i);
@@ -168,12 +169,16 @@ void BinPrimitive(float4 primVPos[3], uint primId)
 			// Tile overlap tests
 			if (Overlaps(tile, a01, b01, a12, b12, a20, b20, minPoint, w))
 				scanLine.x = scanLine.x == 0xffffffff ? j : scanLine.x;
-			else scanLine.y = j;
+			else
+			{
+				scanLine.y = j;
+				needBreak = scanLine.x < scanLine.y;
+			}
 
 			scanLine.y = j == maxTile.x ? j : scanLine.y;
-				
-			if (scanLine.x < scanLine.y)
-				AppendPrimitive(primId, i, scanLine);
+
+			if (scanLine.x < scanLine.y) AppendPrimitive(primId, i, scanLine);
+			if (needBreak) break;
 		}
 	}
 }
