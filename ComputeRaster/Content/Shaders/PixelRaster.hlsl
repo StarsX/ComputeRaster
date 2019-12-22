@@ -14,7 +14,8 @@ StructuredBuffer<TiledPrim> g_roTiledPrimitives : register (t1);
 //--------------------------------------------------------------------------------------
 // UAV buffers
 //--------------------------------------------------------------------------------------
-RWTexture2D<float4> g_rwRenderTarget;
+RWTexture2D<float4>	g_rwRenderTarget;
+RWTexture2D<uint>	g_rwDepth;
 
 //--------------------------------------------------------------------------------------
 // Check if the tile is overlapped by a straight line with a certain thickness.
@@ -69,7 +70,14 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 	if (area <= 0.0) return;
 	w /= area;
 
-	const float z = w.x * primVPos[0].z + w.y * primVPos[1].z + w.z * primVPos[2].z;
+	// Depth test
+	uint depthMin;
+	const float3 depths = float3(primVPos[0].z, primVPos[1].z, primVPos[2].z);
+	const float depth = dot(w, depths);
+	const uint depthU = asuint(depth);
+	InterlockedMin(g_rwDepth[pixelPos], asuint(depth), depthMin);
+	if (depthU > depthMin) return;
 
-	g_rwRenderTarget[pixelPos] = float4(w, 1.0);
+	//g_rwRenderTarget[pixelPos] = float4(w, 1.0);
+	g_rwRenderTarget[pixelPos] = float4(pow(abs(depth), 30.0).xxx, 1.0);
 }

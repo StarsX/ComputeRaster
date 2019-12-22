@@ -281,6 +281,14 @@ void CommandList::EndEvent()
 	m_commandList->EndEvent();
 }
 
+void CommandList::ExecuteIndirect(CommandLayout commandlayout, uint32_t maxCommandCount,
+	const Resource& argumentBuffer, uint64_t argumentBufferOffset,
+	const Resource& countBuffer, uint64_t countBufferOffset)
+{
+	m_commandList->ExecuteIndirect(commandlayout.get(), maxCommandCount,
+		argumentBuffer.get(), argumentBufferOffset, countBuffer.get(), countBufferOffset);
+}
+
 GraphicsCommandList& CommandList::GetCommandList()
 {
 	return m_commandList;

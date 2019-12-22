@@ -18,9 +18,9 @@ public:
 	bool CreateVertexShaderLayout(XUSG::Util::PipelineLayout& utilPipelineLayout, uint32_t slotCount);
 	void SetVertexBuffer(const XUSG::Descriptor& vertexBufferView);
 	void SetIndexBuffer(const XUSG::Descriptor& indexBufferView);
-	void SetRenderTargets(XUSG::Texture2D& colorTarget);
+	void SetRenderTargets(XUSG::Texture2D* pColorTarget, XUSG::Texture2D* pDepth);
 	void VSSetDescriptorTable(uint32_t i, const XUSG::DescriptorTable& descriptorTable);
-	void Clear(const XUSG::Texture2D& target, const float clearValues[4]);
+	void Clear(const XUSG::Texture2D& target, const float clearValues[4], bool asUint = false);
 	void Draw(XUSG::CommandList& commandList, uint32_t numVertices);
 	void DrawIndexed(XUSG::CommandList& commandList, uint32_t numIndices);
 
@@ -57,7 +57,6 @@ protected:
 	{
 		UAV_TABLE_VS,
 		UAV_TABLE_BIN,
-		UAV_TABLE_PS,
 
 		NUM_UAV_TABLE
 	};
@@ -70,6 +69,17 @@ protected:
 		float h;
 		uint32_t numTileX;
 		uint32_t numTileY;
+	};
+
+	struct ClearInfo
+	{
+		bool IsUint;
+		const XUSG::Texture2D* pTarget;
+		union
+		{
+			float ClearFloat[4];
+			uint32_t ClearUint[4];
+		};
 	};
 
 	bool createPipelines();
@@ -89,9 +99,11 @@ protected:
 
 	XUSG::PipelineLayout	m_pipelineLayouts[NUM_STAGE];
 	XUSG::Pipeline			m_pipelines[NUM_STAGE];
+	XUSG::CommandLayout		m_commandLayout;
 
-	std::vector<std::pair<const XUSG::Texture2D*, float[4]>> m_clears;
+	std::vector<ClearInfo> m_clears;
 	std::vector<XUSG::DescriptorTable> m_extVsTables;
+	std::vector<XUSG::DescriptorTable> m_outTables;
 
 	XUSG::DescriptorTable	m_cbvTable;
 	XUSG::DescriptorTable	m_srvTables[NUM_SRV_TABLE];
@@ -106,6 +118,7 @@ protected:
 	XUSG::Descriptor		m_vertexBufferView;
 	XUSG::Descriptor		m_indexBufferView;
 	XUSG::Texture2D*		m_pColorTarget;
+	XUSG::Texture2D*		m_pDepth;
 
 	XUSG::TypedBuffer		m_vertexPos;
 	XUSG::StructuredBuffer	m_tilePrimCountReset;
@@ -113,6 +126,4 @@ protected:
 	XUSG::StructuredBuffer	m_tiledPrimitives;
 
 	DirectX::XMFLOAT2		m_viewport;
-
-	XUSG::com_ptr<ID3D12CommandSignature> m_commandLayout;
 };

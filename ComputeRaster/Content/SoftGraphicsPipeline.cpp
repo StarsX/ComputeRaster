@@ -109,17 +109,24 @@ void SoftGraphicsPipeline::SetIndexBuffer(const Descriptor& indexBufferView)
 	m_indexBufferView = indexBufferView;
 }
 
-void SoftGraphicsPipeline::SetRenderTargets(Texture2D& colorTarget)
+void SoftGraphicsPipeline::SetRenderTargets(Texture2D* pColorTarget, Texture2D* pDepth)
 {
-	m_pColorTarget = &colorTarget;
+	m_pColorTarget = pColorTarget;
+	m_pDepth = pDepth;
 
-	Util::DescriptorTable utilUavTable;
-	const Descriptor descriptors[] =
+	m_outTables.resize(pDepth ? 2 : 1);
 	{
-		colorTarget.GetUAV()
-	};
-	utilUavTable.SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
-	m_uavTables[UAV_TABLE_PS] = utilUavTable.GetCbvSrvUavTable(m_descriptorTableCache);
+		Util::DescriptorTable utilUavTable;
+		utilUavTable.SetDescriptors(0, 1, &pColorTarget->GetUAV());
+		m_outTables[0] = utilUavTable.GetCbvSrvUavTable(m_descriptorTableCache);
+	}
+
+	if (pDepth)
+	{
+		Util::DescriptorTable utilUavTable;
+		utilUavTable.SetDescriptors(0, 1, &pDepth->GetUAV());
+		m_outTables[m_outTables.size() - 1] = utilUavTable.GetCbvSrvUavTable(m_descriptorTableCache);
+	}
 }
 
 void SoftGraphicsPipeline::VSSetDescriptorTable(uint32_t i, const XUSG::DescriptorTable& descriptorTable)
@@ -127,11 +134,12 @@ void SoftGraphicsPipeline::VSSetDescriptorTable(uint32_t i, const XUSG::Descript
 	m_extVsTables[i] = descriptorTable;
 }
 
-void SoftGraphicsPipeline::Clear(const XUSG::Texture2D& target, const float clearValues[4])
+void SoftGraphicsPipeline::Clear(const XUSG::Texture2D& target, const float clearValues[4], bool asUint)
 {
 	m_clears.emplace_back();
-	m_clears.back().first = &target;
-	memcpy(m_clears.back().second, clearValues, sizeof(float[4]));
+	m_clears.back().IsUint = asUint;
+	m_clears.back().pTarget = &target;
+	memcpy(m_clears.back().ClearUint, clearValues, sizeof(float[4]));
 }
 
 void SoftGraphicsPipeline::Draw(CommandList& commandList, uint32_t numVertices)
@@ -213,7 +221,7 @@ bool SoftGraphicsPipeline::createPipelines()
 		utilPipelineLayout.SetConstants(0, SizeOfInUint32(CBViewPort), 0);
 		utilPipelineLayout.SetRange(1, DescriptorType::SRV, 2, 0, 0,
 			DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
-		utilPipelineLayout.SetRange(2, DescriptorType::UAV, 1, 0, 0,
+		utilPipelineLayout.SetRange(2, DescriptorType::UAV, 2, 0, 0,
 			DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		X_RETURN(m_pipelineLayouts[PIX_RASTER], utilPipelineLayout.GetPipelineLayout(
 			m_pipelineLayoutCache, PipelineLayoutFlag::NONE, L"PixelRasterLayout"), false);
@@ -260,17 +268,10 @@ bool SoftGraphicsPipeline::createResetBuffer(const CommandList& commandList, vec
 
 bool SoftGraphicsPipeline::createCommandLayout()
 {
-	D3D12_INDIRECT_ARGUMENT_DESC arg;
-	arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
+	IndirectArgument arg;
+	arg.Type = IndirectArgumentType::DISPATCH;
 
-	D3D12_COMMAND_SIGNATURE_DESC programDesc = {};
-	programDesc.ByteStride = sizeof(D3D12_DISPATCH_ARGUMENTS);
-	programDesc.NumArgumentDescs = 1;
-	programDesc.pArgumentDescs = &arg;
-
-	V_RETURN(m_device->CreateCommandSignature(&programDesc, nullptr, IID_PPV_ARGS(&m_commandLayout)), cerr, false);
-
-	return true;
+	return m_device->CreateCommandLayout(m_commandLayout, sizeof(uint32_t[3]), 1, &arg);
 }
 
 bool SoftGraphicsPipeline::createDescriptorTables()
@@ -387,9 +388,15 @@ void SoftGraphicsPipeline::rasterizer(CommandList& commandList, uint32_t numTria
 	commandList.Barrier(numBarriers, barriers);
 
 	// Clear
-	for (const auto& clear : m_clears)
-		commandList.ClearUnorderedAccessViewFloat(m_uavTables[UAV_TABLE_PS], clear.first->GetUAV(),
-			clear.first->GetResource(), clear.second);
+	const uint32_t clearCount = static_cast<uint32_t>(m_clears.size());
+	for (auto i = 0u; i < clearCount; ++i)
+	{
+		if (m_clears[i].IsUint)
+			commandList.ClearUnorderedAccessViewUint(m_outTables[i], m_clears[i].pTarget->GetUAV(),
+				m_clears[i].pTarget->GetResource(), m_clears[i].ClearUint);
+		else commandList.ClearUnorderedAccessViewFloat(m_outTables[i], m_clears[i].pTarget->GetUAV(),
+			m_clears[i].pTarget->GetResource(), m_clears[i].ClearFloat);
+	}
 	m_clears.clear();
 
 	// Pixel raster
@@ -398,14 +405,13 @@ void SoftGraphicsPipeline::rasterizer(CommandList& commandList, uint32_t numTria
 		commandList.SetComputePipelineLayout(m_pipelineLayouts[PIX_RASTER]);
 		commandList.SetCompute32BitConstants(0, SizeOfInUint32(cbViewport), &cbViewport);
 		commandList.SetComputeDescriptorTable(1, m_srvTables[SRV_TABLE_BIN]);
-		commandList.SetComputeDescriptorTable(2, m_uavTables[UAV_TABLE_PS]);
+		commandList.SetComputeDescriptorTable(2, m_outTables[0]);
 
 		// Set pipeline state
 		commandList.SetPipelineState(m_pipelines[PIX_RASTER]);
 
 		// Dispatch indirect
-		// [TODO] need XUSG interface
-		commandList.GetCommandList()->ExecuteIndirect(m_commandLayout.get(), 1,
-			m_tilePrimCount.GetResource().get(), 0, m_tilePrimCount.GetResource().get(), 0);
+		commandList.ExecuteIndirect(m_commandLayout, 1, m_tilePrimCount.GetResource(),
+			0, m_tilePrimCount.GetResource());
 	}
 }

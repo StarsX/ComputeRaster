@@ -390,6 +390,19 @@ namespace XUSG
 
 	DEFINE_ENUM_FLAG_OPERATORS(FenceFlag);
 
+	enum class IndirectArgumentType
+	{
+		DRAW					= D3D12_INDIRECT_ARGUMENT_TYPE_DRAW,
+		DRAW_INDEXED			= D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED,
+		DISPATCH				= D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH,
+		VERTEX_BUFFER_VIEW		= D3D12_INDIRECT_ARGUMENT_TYPE_VERTEX_BUFFER_VIEW,
+		INDEX_BUFFER_VIEW		= D3D12_INDIRECT_ARGUMENT_TYPE_INDEX_BUFFER_VIEW,
+		CONSTANT				= D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT,
+		CONSTANT_BUFFER_VIEW	= D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT_BUFFER_VIEW,
+		SHADER_RESOURCE_VIEW	= D3D12_INDIRECT_ARGUMENT_TYPE_SHADER_RESOURCE_VIEW,
+		UNORDERED_ACCESS_VIEW	= D3D12_INDIRECT_ARGUMENT_TYPE_UNORDERED_ACCESS_VIEW
+	};
+
 	enum Requirements
 	{
 		REQ_MIP_LEVELS						= D3D12_REQ_MIP_LEVELS,
@@ -472,6 +485,37 @@ namespace XUSG
 
 	using Pipeline = com_ptr<ID3D12PipelineState>;
 
+	struct IndirectArgument
+	{
+		IndirectArgumentType Type;
+		union
+		{
+			struct
+			{
+				uint32_t Slot;
+			} VertexBuffer;
+			struct
+			{
+				uint32_t Index;
+				uint32_t DestOffsetIn32BitValues;
+				uint32_t Num32BitValuesToSet;
+			} Constant;
+			struct
+			{
+				uint32_t Index;
+			} ConstantBufferView;
+			struct
+			{
+				uint32_t Index;
+			} ShaderResourceView;
+			struct
+			{
+				uint32_t Index;
+			} UnorderedAccessView;
+		};
+	};
+	using CommandLayout = com_ptr<ID3D12CommandSignature>;
+
 	// Device
 	MIDL_INTERFACE("189819f1-1db6-4b57-be54-1821339b85f7")
 		DX12Device : public ID3D12Device
@@ -505,6 +549,19 @@ namespace XUSG
 		bool GetFence(Fence& fence, uint64_t initialValue, FenceFlag flags)
 		{
 			V_RETURN(CreateFence(initialValue, static_cast<D3D12_FENCE_FLAGS>(flags), IID_PPV_ARGS(&fence)), std::cerr, false);
+			return true;
+		}
+
+		bool CreateCommandLayout(CommandLayout& commandLayout, uint32_t byteStride, uint32_t numArguments,
+			const IndirectArgument* pArguments, uint32_t nodeMask = 0)
+		{
+			D3D12_COMMAND_SIGNATURE_DESC programDesc;
+			programDesc.ByteStride = byteStride;
+			programDesc.NumArgumentDescs = numArguments;
+			programDesc.pArgumentDescs = reinterpret_cast<decltype(programDesc.pArgumentDescs)>(pArguments);
+			programDesc.NodeMask = nodeMask;
+
+			V_RETURN(CreateCommandSignature(&programDesc, nullptr, IID_PPV_ARGS(&commandLayout)), std::cerr, false);
 			return true;
 		}
 	};

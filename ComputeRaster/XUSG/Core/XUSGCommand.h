@@ -100,6 +100,9 @@ namespace XUSG
 		virtual void SetMarker(uint32_t metaData, const void* pData, uint32_t size) const;
 		virtual void BeginEvent(uint32_t metaData, const void* pData, uint32_t size) const;
 		virtual void EndEvent();
+		virtual void ExecuteIndirect(CommandLayout commandlayout, uint32_t maxCommandCount,
+			const Resource& argumentBuffer, uint64_t argumentBufferOffset = 0,
+			const Resource& countBuffer = nullptr, uint64_t countBufferOffset = 0);
 
 		GraphicsCommandList& GetCommandList();
 

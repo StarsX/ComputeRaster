@@ -87,7 +87,6 @@ void Conserves(out float2 cv[3], float4 primVPos[3])
 	cv[2] = Conserve(v[1], v[2], v[0]);
 }
 
-
 //--------------------------------------------------------------------------------------
 // Check if the tile is overlapped by a straight line with a certain thickness.
 //--------------------------------------------------------------------------------------
@@ -176,6 +175,120 @@ void BinPrimitive(float4 primVPos[3], uint primId)
 			if (scanLine.x < scanLine.y)
 				AppendPrimitive(primId, i, scanLine);
 		}
+	}
+}
+
+//--------------------------------------------------------------------------------------
+// Select min X
+//--------------------------------------------------------------------------------------
+float2 minX(float2 v0, float2 v1)
+{
+	return v0.x < v1.x ? v0 : v1;
+}
+
+//--------------------------------------------------------------------------------------
+// Select max Y
+//--------------------------------------------------------------------------------------
+float2 maxY(float2 v0, float2 v1)
+{
+	return v0.y > v1.y ? v0 : v1;
+}
+
+//--------------------------------------------------------------------------------------
+// Select top left as the first
+//--------------------------------------------------------------------------------------
+float2 GetV0(float2 v0, float2 v1)
+{
+	return v0.y < v1.y ? v0 : (v0.y == v1.y ? minX(v0, v1) : v1);
+}
+
+//--------------------------------------------------------------------------------------
+// Select the second
+//--------------------------------------------------------------------------------------
+float2 GetV1(float2 v0, float2 v1, float y0)
+{
+	return v0.y <= y0 ? v1 : (v1.y <= y0 ? v0 : minX(v0, v1));
+}
+
+//--------------------------------------------------------------------------------------
+// Sort vertices and compute the minimum pixel as well as
+// the maximum pixel possibly overlapped by the primitive.
+//--------------------------------------------------------------------------------------
+void SortAndComputeAABB(float4 primVPos[3], out float2 v[3],
+	out float2 minPt, out float2 maxPt)
+{
+	float2 p[3];
+	[unroll]
+	for (uint i = 0; i < 3; ++i) p[i] = primVPos[i].xy / 8.0;
+
+	minPt = min(p[0], min(p[1], p[2]));
+	maxPt = max(p[0], max(p[1], p[2]));
+	minPt.y = max(floor(minPt.y) + 0.5, 0.0);
+	maxPt.y = min(ceil(maxPt.y) + 0.5, g_tileDim.y);
+
+	v[0] = GetV0(GetV0(p[0], p[1]), p[2]);
+	v[1] = GetV1(GetV1(p[0], p[1], v[0].y), p[2], v[0].y);
+	v[2] = (p[0] + p[1] + p[2]) - (v[0] + v[1]);
+}
+
+//--------------------------------------------------------------------------------------
+// Compute k and b for x = ky + b.
+//--------------------------------------------------------------------------------------
+float2 ComputeKB(float2 v0, float2 v1)
+{
+	const float2 e = v1 - v0;
+	const float k = e.x / e.y;
+
+	return float2(k, v0.x - k * v0.y);
+}
+
+//--------------------------------------------------------------------------------------
+// Bin the primitive.
+//--------------------------------------------------------------------------------------
+void BinPrimitive2(float4 primVPos[3], uint primId)
+{
+	// Create the AABB.
+	float2 v[3], minPt, maxPt;
+	SortAndComputeAABB(primVPos, v, minPt, maxPt);
+
+	const float nearestZ = min(primVPos[0].z, min(primVPos[1].z, primVPos[2].z));
+
+	const float2 e01 = ComputeKB(v[0], v[1]);
+	const float2 e02 = ComputeKB(v[0], v[2]);
+	const float2 e12 = ComputeKB(v[1], v[2]);
+	const float2 e21 = float2(-e12.x, v[2].x + e12.x * v[2].y);
+
+	float2 scan;
+	scan.x = e01.x * minPt.y + e01.y;
+	scan.y = e02.x * minPt.y + e02.y;
+
+	bool2 phase2 = false;
+	for (float y = minPt.y; y <= maxPt.y; ++y)
+	{
+		if (!phase2.x && y > v[1].y)
+		{
+			scan.x = e12.x * y + e12.y;
+			phase2.x = true;
+		}
+
+		if (!phase2.y && y > v[2].y)
+		{
+			scan.y = e21.x * y + e21.y;
+			phase2.y = true;
+		}
+
+		uint2 scanLine;
+		scanLine.x = floor(scan.x);
+		scanLine.y = ceil(scan.y) + 1.0;
+
+		scanLine.x = max(scanLine.x, 0.0);
+		scanLine.y = min(scanLine.y, g_tileDim.x);
+
+		if (scanLine.x < scanLine.y)
+			AppendPrimitive(primId, y, scanLine);
+
+		scan.x += phase2.x ? e12.x : e01.x;
+		scan.y += phase2.y ? e21.x : e02.x;
 	}
 }
 

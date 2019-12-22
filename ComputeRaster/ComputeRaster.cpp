@@ -126,9 +126,9 @@ void ComputeRaster::LoadPipeline()
 	N_RETURN(m_colorTarget.Create(m_device, m_width, m_height, Format::R8G8B8A8_UNORM, 1,
 		ResourceFlag::ALLOW_UNORDERED_ACCESS), ThrowIfFailed(E_FAIL));
 
-	// Create a DSV
-	N_RETURN(m_depth.Create(m_device, m_width, m_height, Format::D24_UNORM_S8_UINT,
-		ResourceFlag::DENY_SHADER_RESOURCE), ThrowIfFailed(E_FAIL));
+	// Create depth buffer
+	N_RETURN(m_depth.Create(m_device, m_width, m_height, Format::R32_UINT, 1,
+		ResourceFlag::ALLOW_UNORDERED_ACCESS), ThrowIfFailed(E_FAIL));
 }
 
 // Load the sample assets.
@@ -386,26 +386,21 @@ void ComputeRaster::PopulateCommandList()
 	// re-recording.
 	ThrowIfFailed(m_commandList.Reset(m_commandAllocators[m_frameIndex], nullptr));
 
+	// Record commands.
 	ResourceBarrier barriers[2];
 	auto numBarriers = m_colorTarget.SetBarrier(barriers, ResourceState::UNORDERED_ACCESS);
 	m_commandList.Barrier(numBarriers, barriers);
 
-	// Record commands.
-	{
-		//const float clearColor[] = { CLEAR_COLOR, 0.0f };
-		//m_commandList.ClearRenderTargetView(m_renderTargets[m_frameIndex].GetRTV(), clearColor);
-	}
-	//m_commandList.ClearDepthStencilView(m_depth.GetDSV(), ClearFlag::DEPTH, 1.0f);
-
 	// Compute raster rendering
 	const float clearColor[] = { CLEAR_COLOR, 0.0f };
-	m_softGraphicsPipeline->SetRenderTargets(m_colorTarget);
+	const float clearDepth = 1.0f;
+	m_softGraphicsPipeline->SetRenderTargets(&m_colorTarget, &m_depth);
 	m_softGraphicsPipeline->Clear(m_colorTarget, clearColor);
+	m_softGraphicsPipeline->Clear(m_depth, &clearDepth, true);
 	m_softGraphicsPipeline->SetVertexBuffer(m_vb.GetSRV());
 	m_softGraphicsPipeline->SetIndexBuffer(m_ib.GetSRV());
 	m_softGraphicsPipeline->VSSetDescriptorTable(0, m_cbvTables[m_frameIndex]);
 	m_softGraphicsPipeline->DrawIndexed(m_commandList, m_numIndices);
-	//m_softGraphicsPipeline->Draw(m_commandList, 3);
 
 	{
 		const TextureCopyLocation dst(m_renderTargets[m_frameIndex].GetResource().get(), 0);
