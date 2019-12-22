@@ -10,27 +10,36 @@
 class SoftGraphicsPipeline
 {
 public:
+	struct DepthBuffer
+	{
+		XUSG::Texture2D Depth;
+		XUSG::Texture2D HiZ;
+	};
+
 	SoftGraphicsPipeline(const XUSG::Device& device);
 	virtual ~SoftGraphicsPipeline();
 
-	bool Init(const XUSG::CommandList& commandList, uint32_t width, uint32_t height,
-		std::vector<XUSG::Resource>& uploaders);
+	bool Init(const XUSG::CommandList& commandList, std::vector<XUSG::Resource>& uploaders);
 	bool CreateVertexShaderLayout(XUSG::Util::PipelineLayout& utilPipelineLayout, uint32_t slotCount);
-	bool SetAttribute(uint32_t i, uint32_t stride, XUSG::Format format, const wchar_t* name = L"Attribute");
+	void SetAttribute(uint32_t i, uint32_t stride, XUSG::Format format, const wchar_t* name = L"Attribute");
 	void SetVertexBuffer(const XUSG::Descriptor& vertexBufferView);
 	void SetIndexBuffer(const XUSG::Descriptor& indexBufferView);
-	void SetRenderTargets(XUSG::Texture2D* pColorTarget, XUSG::Texture2D* pDepth);
+	void SetRenderTargets(XUSG::Texture2D* pColorTarget, DepthBuffer* pDepth);
+	void SetViewport(const XUSG::Viewport& viewport);
 	void VSSetDescriptorTable(uint32_t i, const XUSG::DescriptorTable& descriptorTable);
-	void Clear(const XUSG::Texture2D& target, const float clearValues[4], bool asUint = false);
+	void ClearFloat(const XUSG::Texture2D& target, const float clearValues[4]);
+	void ClearUint(const XUSG::Texture2D& target, const uint32_t clearValues[4]);
+	void ClearDepth(const float clearValue);
 	void Draw(XUSG::CommandList& commandList, uint32_t numVertices);
 	void DrawIndexed(XUSG::CommandList& commandList, uint32_t numIndices);
 
+	bool CreateDepthBuffer(DepthBuffer &depth, uint32_t width, uint32_t height, XUSG::Format format);
 	bool CreateVertexBuffer(const XUSG::CommandList& commandList, XUSG::VertexBuffer& vb,
 		std::vector<XUSG::Resource>& uploaders, const void* pData, uint32_t numVert,
 		uint32_t srtide, const wchar_t* name = L"VertexBuffer") const;
 	bool CreateIndexBuffer(const XUSG::CommandList& commandList, XUSG::IndexBuffer& ib,
 		std::vector<XUSG::Resource>& uploaders, const void* pData, uint32_t numIdx,
-		XUSG::Format format, const wchar_t* name = L"IndexBuffer") const;
+		XUSG::Format format, const wchar_t* name = L"IndexBuffer");
 	XUSG::DescriptorTableCache& GetDescriptorTableCache();
 
 	static const uint32_t FrameCount = FRAME_COUNT;
@@ -70,6 +79,13 @@ protected:
 		float h;
 		uint32_t numTileX;
 		uint32_t numTileY;
+	};
+
+	struct AttributeInfo
+	{
+		uint32_t Stride;
+		XUSG::Format Format;
+		std::wstring Name;
 	};
 
 	struct ClearInfo
@@ -119,13 +135,17 @@ protected:
 	XUSG::Descriptor		m_vertexBufferView;
 	XUSG::Descriptor		m_indexBufferView;
 	XUSG::Texture2D*		m_pColorTarget;
-	XUSG::Texture2D*		m_pDepth;
+	DepthBuffer*			m_pDepth;
 
+	std::vector<AttributeInfo> m_attribInfo;
 	std::vector<XUSG::TypedBuffer> m_vertexAttribs;
 	XUSG::TypedBuffer		m_vertexPos;
 	XUSG::StructuredBuffer	m_tilePrimCountReset;
 	XUSG::StructuredBuffer	m_tilePrimCount;
 	XUSG::StructuredBuffer	m_tiledPrimitives;
 
-	DirectX::XMFLOAT2		m_viewport;
+	XUSG::Viewport			m_viewport;
+
+	uint32_t				m_maxVertexCount;
+	uint32_t				m_clearDepth;
 };

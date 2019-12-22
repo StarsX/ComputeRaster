@@ -58,7 +58,7 @@ private:
 	XUSG::IndexBuffer	m_ib;
 	XUSG::ConstantBuffer m_cbMatrices;
 	XUSG::Texture2D		m_colorTarget;
-	XUSG::Texture2D		m_depth;
+	SoftGraphicsPipeline::DepthBuffer m_depth;
 	XMFLOAT4X4			m_proj;
 	XMFLOAT4X4	m_view;
 	XMFLOAT3	m_focusPt;

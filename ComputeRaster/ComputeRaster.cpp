@@ -126,9 +126,12 @@ void ComputeRaster::LoadPipeline()
 	N_RETURN(m_colorTarget.Create(m_device, m_width, m_height, Format::R8G8B8A8_UNORM, 1,
 		ResourceFlag::ALLOW_UNORDERED_ACCESS), ThrowIfFailed(E_FAIL));
 
+	m_softGraphicsPipeline = make_unique<SoftGraphicsPipeline>(m_device);
+	if (!m_softGraphicsPipeline) ThrowIfFailed(E_FAIL);
+
 	// Create depth buffer
-	N_RETURN(m_depth.Create(m_device, m_width, m_height, Format::R32_UINT, 1,
-		ResourceFlag::ALLOW_UNORDERED_ACCESS), ThrowIfFailed(E_FAIL));
+	N_RETURN(m_softGraphicsPipeline->CreateDepthBuffer(m_depth, m_width,
+		m_height, Format::R32_UINT), ThrowIfFailed(E_FAIL));
 }
 
 // Load the sample assets.
@@ -138,17 +141,13 @@ void ComputeRaster::LoadAssets()
 	N_RETURN(m_device->GetCommandList(m_commandList.GetCommandList(), 0, CommandListType::DIRECT,
 		m_commandAllocators[m_frameIndex], nullptr), ThrowIfFailed(E_FAIL));
 
-	m_softGraphicsPipeline = make_unique<SoftGraphicsPipeline>(m_device);
-	if (!m_softGraphicsPipeline) ThrowIfFailed(E_FAIL);
-
 	vector<Resource> uploaders(0);
-	if (!m_softGraphicsPipeline->Init(m_commandList, m_width, m_height, uploaders))
+	if (!m_softGraphicsPipeline->Init(m_commandList, uploaders))
 		ThrowIfFailed(E_FAIL);
 
 	Util::PipelineLayout pipelineLayout;
 	pipelineLayout.SetRange(0, DescriptorType::CBV, 1, 0);
-	if (!m_softGraphicsPipeline->SetAttribute(0, sizeof(uint32_t[4]), Format::R32G32B32A32_FLOAT, L"Normal"))
-		ThrowIfFailed(E_FAIL);
+	m_softGraphicsPipeline->SetAttribute(0, sizeof(uint32_t[4]), Format::R32G32B32A32_FLOAT, L"Normal");
 	if (!m_softGraphicsPipeline->CreateVertexShaderLayout(pipelineLayout, 1))
 		ThrowIfFailed(E_FAIL);
 
@@ -401,10 +400,10 @@ void ComputeRaster::PopulateCommandList()
 
 	// Compute raster rendering
 	const float clearColor[] = { CLEAR_COLOR, 0.0f };
-	const float clearDepth = 1.0f;
 	m_softGraphicsPipeline->SetRenderTargets(&m_colorTarget, &m_depth);
-	m_softGraphicsPipeline->Clear(m_colorTarget, clearColor);
-	m_softGraphicsPipeline->Clear(m_depth, &clearDepth, true);
+	m_softGraphicsPipeline->ClearFloat(m_colorTarget, clearColor);
+	m_softGraphicsPipeline->ClearDepth(1.0f);
+	m_softGraphicsPipeline->SetViewport(Viewport(0.0f, 0.0f, (float)m_width, (float)m_height));
 	m_softGraphicsPipeline->SetVertexBuffer(m_vb.GetSRV());
 	m_softGraphicsPipeline->SetIndexBuffer(m_ib.GetSRV());
 	m_softGraphicsPipeline->VSSetDescriptorTable(0, m_cbvTables[m_frameIndex]);
