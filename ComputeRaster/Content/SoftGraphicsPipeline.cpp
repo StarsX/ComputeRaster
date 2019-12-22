@@ -10,7 +10,7 @@ using namespace DirectX;
 using namespace XUSG;
 
 const uint32_t MAX_PIXEL_COUNT = (UINT32_MAX >> 4) + 1;
-const uint32_t MAX_VERTEX_COUNT = (UINT32_MAX >> 6) + 1;
+const uint32_t MAX_VERTEX_COUNT = (UINT32_MAX >> 8) + 1;
 
 SoftGraphicsPipeline::SoftGraphicsPipeline(const Device& device) :
 	m_device(device),
@@ -31,9 +31,6 @@ bool SoftGraphicsPipeline::Init(const CommandList& commandList, uint32_t width, 
 	m_viewport.x = static_cast<float>(width);
 	m_viewport.y = static_cast<float>(height);
 
-	// Create pipelines
-	N_RETURN(createPipelines(), false);
-
 	// Create buffers
 	N_RETURN(m_tilePrimCount.Create(m_device, 3, sizeof(uint32_t), ResourceFlag::ALLOW_UNORDERED_ACCESS,
 		MemoryType::DEFAULT, ResourceState::COMMON, 1, nullptr, 1, nullptr, L"TilePrimitiveCount"), false);
@@ -42,9 +39,6 @@ bool SoftGraphicsPipeline::Init(const CommandList& commandList, uint32_t width, 
 	N_RETURN(m_vertexPos.Create(m_device, MAX_VERTEX_COUNT, sizeof(float[4]), Format::R32G32B32A32_FLOAT,
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, ResourceState::COMMON, 1,
 		nullptr, 1, nullptr, L"VertexPositions"), false);
-
-	// create descriptor tables
-	N_RETURN(createDescriptorTables(), false);
 
 	// create reset buffer for resetting TilePrimitiveCount
 	N_RETURN(createResetBuffer(commandList, uploaders), false);
@@ -58,12 +52,13 @@ bool SoftGraphicsPipeline::Init(const CommandList& commandList, uint32_t width, 
 bool SoftGraphicsPipeline::CreateVertexShaderLayout(Util::PipelineLayout& pipelineLayout, uint32_t slotCount)
 {
 	m_extVsTables.resize(slotCount);
+	const auto numUAVs = static_cast<uint32_t>(m_vertexAttribs.size()) + 1;
 	auto pipelineLayoutIndexed = pipelineLayout;
 
 	// Create pipeline layouts
 	{
 		pipelineLayout.SetRange(slotCount, DescriptorType::SRV, 1, 0, 0, DescriptorRangeFlag::DATA_STATIC);
-		pipelineLayout.SetRange(slotCount + 1, DescriptorType::UAV, 1, 0, 0,
+		pipelineLayout.SetRange(slotCount + 1, DescriptorType::UAV, numUAVs, 0, 0,
 			DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		X_RETURN(m_pipelineLayouts[VERTEX_PROCESS], pipelineLayout.GetPipelineLayout(
 			m_pipelineLayoutCache, PipelineLayoutFlag::NONE, L"VertexShaderStageLayout"), false);
@@ -71,7 +66,7 @@ bool SoftGraphicsPipeline::CreateVertexShaderLayout(Util::PipelineLayout& pipeli
 
 	{
 		pipelineLayoutIndexed.SetRange(slotCount, DescriptorType::SRV, 2, 0, 0, DescriptorRangeFlag::DATA_STATIC);
-		pipelineLayoutIndexed.SetRange(slotCount + 1, DescriptorType::UAV, 1, 0, 0,
+		pipelineLayoutIndexed.SetRange(slotCount + 1, DescriptorType::UAV, numUAVs, 0, 0,
 			DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		X_RETURN(m_pipelineLayouts[VERTEX_INDEXED], pipelineLayoutIndexed.GetPipelineLayout(
 			m_pipelineLayoutCache, PipelineLayoutFlag::NONE, L"VertexShaderStageIndexedLayout"), false);
@@ -96,7 +91,21 @@ bool SoftGraphicsPipeline::CreateVertexShaderLayout(Util::PipelineLayout& pipeli
 		X_RETURN(m_pipelines[VERTEX_INDEXED], state.GetPipeline(m_computePipelineCache, L"VertexShaderStageIndexed"), false);
 	}
 
+	N_RETURN(createPipelines(), false);
+
+	// create descriptor tables
+	N_RETURN(createDescriptorTables(), false);
+
 	return true;
+}
+
+bool SoftGraphicsPipeline::SetAttribute(uint32_t i, uint32_t stride, Format format, const wchar_t* name)
+{
+	if (i >= m_vertexAttribs.size()) m_vertexAttribs.resize(i + 1);
+
+	return m_vertexAttribs[i].Create(m_device, MAX_VERTEX_COUNT, stride, format,
+		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, ResourceState::COMMON, 1,
+		nullptr, 1, nullptr, name);
 }
 
 void SoftGraphicsPipeline::SetVertexBuffer(const Descriptor& vertexBufferView)
@@ -218,8 +227,9 @@ bool SoftGraphicsPipeline::createPipelines()
 
 	{
 		Util::PipelineLayout utilPipelineLayout;
+		const auto numSRVs = static_cast<uint32_t>(m_vertexAttribs.size()) + 2;
 		utilPipelineLayout.SetConstants(0, SizeOfInUint32(CBViewPort), 0);
-		utilPipelineLayout.SetRange(1, DescriptorType::SRV, 2, 0, 0,
+		utilPipelineLayout.SetRange(1, DescriptorType::SRV, numSRVs, 0, 0,
 			DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		utilPipelineLayout.SetRange(2, DescriptorType::UAV, 2, 0, 0,
 			DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
@@ -276,22 +286,24 @@ bool SoftGraphicsPipeline::createCommandLayout()
 
 bool SoftGraphicsPipeline::createDescriptorTables()
 {
+	const auto numAttribs = static_cast<uint32_t>(m_vertexAttribs.size());
+
 	Util::DescriptorTable utilSrvTable;
-	const Descriptor srvs[] =
-	{
-		m_vertexPos.GetSRV(),
-		m_tiledPrimitives.GetSRV()
-	};
-	utilSrvTable.SetDescriptors(0, static_cast<uint32_t>(size(srvs)), srvs);
-	X_RETURN(m_srvTables[SRV_TABLE_BIN], utilSrvTable.GetCbvSrvUavTable(m_descriptorTableCache), false);
+	vector<Descriptor> srvs;
+	srvs.reserve(numAttribs + 2);
+	srvs.push_back(m_vertexPos.GetSRV());
+	srvs.push_back(m_tiledPrimitives.GetSRV());
+	for (const auto& attrib : m_vertexAttribs) srvs.push_back(attrib.GetSRV());
+	utilSrvTable.SetDescriptors(0, static_cast<uint32_t>(srvs.size()), srvs.data());
+	X_RETURN(m_srvTables[SRV_TABLE_RASTER], utilSrvTable.GetCbvSrvUavTable(m_descriptorTableCache), false);
 
 	{
 		Util::DescriptorTable utilUavTable;
-		const Descriptor uavs[] =
-		{
-			m_vertexPos.GetUAV()
-		};
-		utilUavTable.SetDescriptors(0, static_cast<uint32_t>(size(uavs)), uavs);
+		vector<Descriptor> uavs;
+		uavs.reserve(numAttribs + 1);
+		uavs.push_back(m_vertexPos.GetUAV());
+		for (const auto& attrib : m_vertexAttribs) uavs.push_back(attrib.GetUAV());
+		utilUavTable.SetDescriptors(0, static_cast<uint32_t>(uavs.size()), uavs.data());
 		X_RETURN(m_uavTables[UAV_TABLE_VS], utilUavTable.GetCbvSrvUavTable(m_descriptorTableCache), false);
 	}
 
@@ -319,10 +331,12 @@ void SoftGraphicsPipeline::draw(CommandList& commandList, uint32_t num, StageInd
 	commandList.SetDescriptorPools(static_cast<uint32_t>(size(descriptorPools)), descriptorPools);
 
 	// Set resource barriers
-	ResourceBarrier barriers[2];
-	auto numBarriers = m_tilePrimCount.SetBarrier(barriers, ResourceState::COPY_DEST);
-	numBarriers = m_vertexPos.SetBarrier(barriers, ResourceState::UNORDERED_ACCESS, numBarriers);
-	commandList.Barrier(numBarriers, barriers);
+	vector<ResourceBarrier> barriers(m_vertexAttribs.size() + 2);
+	auto numBarriers = m_tilePrimCount.SetBarrier(barriers.data(), ResourceState::COPY_DEST);
+	numBarriers = m_vertexPos.SetBarrier(barriers.data(), ResourceState::UNORDERED_ACCESS, numBarriers);
+	for (auto& attrib : m_vertexAttribs)
+		numBarriers = attrib.SetBarrier(barriers.data(), ResourceState::UNORDERED_ACCESS, numBarriers);
+	commandList.Barrier(numBarriers, barriers.data());
 
 	// Vertex shader
 	{
@@ -360,18 +374,18 @@ void SoftGraphicsPipeline::rasterizer(CommandList& commandList, uint32_t numTria
 		m_tilePrimCountReset.GetResource(), 0, sizeof(uint32_t));
 
 	// Set resource barriers
-	ResourceBarrier barriers[3];
-	auto numBarriers = m_vertexPos.SetBarrier(barriers, ResourceState::NON_PIXEL_SHADER_RESOURCE);
-	numBarriers = m_tilePrimCount.SetBarrier(barriers, ResourceState::UNORDERED_ACCESS, numBarriers);
-	numBarriers = m_tiledPrimitives.SetBarrier(barriers, ResourceState::UNORDERED_ACCESS, numBarriers);
-	commandList.Barrier(numBarriers, barriers);
+	vector<ResourceBarrier> barriers(m_vertexAttribs.size() + 3);
+	auto numBarriers = m_vertexPos.SetBarrier(barriers.data(), ResourceState::NON_PIXEL_SHADER_RESOURCE);
+	numBarriers = m_tilePrimCount.SetBarrier(barriers.data(), ResourceState::UNORDERED_ACCESS, numBarriers);
+	numBarriers = m_tiledPrimitives.SetBarrier(barriers.data(), ResourceState::UNORDERED_ACCESS, numBarriers);
+	commandList.Barrier(numBarriers, barriers.data());
 
 	// Bin raster
 	{
 		// Set descriptor tables
 		commandList.SetComputePipelineLayout(m_pipelineLayouts[BIN_RASTER]);
 		commandList.SetCompute32BitConstants(0, SizeOfInUint32(cbViewport), &cbViewport);
-		commandList.SetComputeDescriptorTable(1, m_srvTables[SRV_TABLE_BIN]);
+		commandList.SetComputeDescriptorTable(1, m_srvTables[SRV_TABLE_RASTER]);
 		commandList.SetComputeDescriptorTable(2, m_uavTables[UAV_TABLE_BIN]);
 
 		// Set pipeline state
@@ -382,10 +396,12 @@ void SoftGraphicsPipeline::rasterizer(CommandList& commandList, uint32_t numTria
 	}
 
 	// Set resource barriers
-	numBarriers = m_pColorTarget->SetBarrier(barriers, ResourceState::UNORDERED_ACCESS);
-	numBarriers = m_tilePrimCount.SetBarrier(barriers, ResourceState::INDIRECT_ARGUMENT, numBarriers);
-	numBarriers = m_tiledPrimitives.SetBarrier(barriers, ResourceState::NON_PIXEL_SHADER_RESOURCE, numBarriers);
-	commandList.Barrier(numBarriers, barriers);
+	numBarriers = m_pColorTarget->SetBarrier(barriers.data(), ResourceState::UNORDERED_ACCESS);
+	numBarriers = m_tilePrimCount.SetBarrier(barriers.data(), ResourceState::INDIRECT_ARGUMENT, numBarriers);
+	numBarriers = m_tiledPrimitives.SetBarrier(barriers.data(), ResourceState::NON_PIXEL_SHADER_RESOURCE, numBarriers);
+	for (auto& attrib : m_vertexAttribs)
+		numBarriers = attrib.SetBarrier(barriers.data(), ResourceState::NON_PIXEL_SHADER_RESOURCE, numBarriers);
+	commandList.Barrier(numBarriers, barriers.data());
 
 	// Clear
 	const uint32_t clearCount = static_cast<uint32_t>(m_clears.size());
@@ -404,7 +420,7 @@ void SoftGraphicsPipeline::rasterizer(CommandList& commandList, uint32_t numTria
 		// Set descriptor tables
 		commandList.SetComputePipelineLayout(m_pipelineLayouts[PIX_RASTER]);
 		commandList.SetCompute32BitConstants(0, SizeOfInUint32(cbViewport), &cbViewport);
-		commandList.SetComputeDescriptorTable(1, m_srvTables[SRV_TABLE_BIN]);
+		commandList.SetComputeDescriptorTable(1, m_srvTables[SRV_TABLE_RASTER]);
 		commandList.SetComputeDescriptorTable(2, m_outTables[0]);
 
 		// Set pipeline state

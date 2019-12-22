@@ -16,6 +16,7 @@ public:
 	bool Init(const XUSG::CommandList& commandList, uint32_t width, uint32_t height,
 		std::vector<XUSG::Resource>& uploaders);
 	bool CreateVertexShaderLayout(XUSG::Util::PipelineLayout& utilPipelineLayout, uint32_t slotCount);
+	bool SetAttribute(uint32_t i, uint32_t stride, XUSG::Format format, const wchar_t* name = L"Attribute");
 	void SetVertexBuffer(const XUSG::Descriptor& vertexBufferView);
 	void SetIndexBuffer(const XUSG::Descriptor& indexBufferView);
 	void SetRenderTargets(XUSG::Texture2D* pColorTarget, XUSG::Texture2D* pDepth);
@@ -48,7 +49,7 @@ protected:
 	enum SRVTable : uint8_t
 	{
 		SRV_TABLE_VS,
-		SRV_TABLE_BIN,
+		SRV_TABLE_RASTER,
 
 		NUM_SRV_TABLE
 	};
@@ -120,6 +121,7 @@ protected:
 	XUSG::Texture2D*		m_pColorTarget;
 	XUSG::Texture2D*		m_pDepth;
 
+	std::vector<XUSG::TypedBuffer> m_vertexAttribs;
 	XUSG::TypedBuffer		m_vertexPos;
 	XUSG::StructuredBuffer	m_tilePrimCountReset;
 	XUSG::StructuredBuffer	m_tilePrimCount;

@@ -3,13 +3,16 @@
 //--------------------------------------------------------------------------------------
 
 #include "Common.hlsli"
+#define main PSMain
+#include "PixelShader.hlsl"
+#undef main
 
 //--------------------------------------------------------------------------------------
 // Buffers
 //--------------------------------------------------------------------------------------
 Buffer<float4> g_roVertexPos : register (t0);
-//Texture2D<float> g_txBinDepth;
 StructuredBuffer<TiledPrim> g_roTiledPrimitives : register (t1);
+Buffer<float3> g_roVertexNrm : register (t2);
 
 //--------------------------------------------------------------------------------------
 // UAV buffers
@@ -61,9 +64,11 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 	// To screen space.
 	ToScreenSpace(primVPos);
 
+	PSIn input;
 	float3 w;
 	const uint2 pixelPos = (tile << 3) + GTid;
-	if (!Overlaps(pixelPos + 0.5, primVPos, w)) return;
+	input.Pos.xy = pixelPos + 0.5;
+	if (!Overlaps(input.Pos.xy, primVPos, w)) return;
 
 	// Normalize barycentric coordinates.
 	const float area = determinant(primVPos[0].xy, primVPos[1].xy, primVPos[2].xy);
@@ -72,12 +77,23 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 
 	// Depth test
 	uint depthMin;
-	const float3 depths = float3(primVPos[0].z, primVPos[1].z, primVPos[2].z);
-	const float depth = dot(w, depths);
-	const uint depthU = asuint(depth);
-	InterlockedMin(g_rwDepth[pixelPos], asuint(depth), depthMin);
-	if (depthU > depthMin) return;
+	input.Pos.z = w.x * primVPos[0].z + w.y * primVPos[1].z + w.z * primVPos[2].z;
+	const uint depth = asuint(input.Pos.z);
+	InterlockedMin(g_rwDepth[pixelPos], asuint(input.Pos.z), depthMin);
+	if (depth > depthMin) return;
+
+	// Interpolations
+	const float rhw = w.x * primVPos[0].w + w.y * primVPos[1].w + w.z * primVPos[2].w;
+	input.Pos.w = 1.0 / rhw;
+
+	float3 primVAtt[3];
+	[unroll]
+	for (i = 0; i < 3; ++i) primVAtt[i] = g_roVertexNrm[baseVIdx + i];
+	[unroll]
+	for (i = 0; i < 3; ++i) primVAtt[i] *= primVPos[i].w;
+	const float3 nrm = w.x * primVAtt[0] + w.y * primVAtt[1] + w.z * primVAtt[2];
+	input.Nrm = nrm * input.Pos.w;
 
 	//g_rwRenderTarget[pixelPos] = float4(w, 1.0);
-	g_rwRenderTarget[pixelPos] = float4(pow(abs(depth), 30.0).xxx, 1.0);
+	g_rwRenderTarget[pixelPos] = PSMain(input);
 }

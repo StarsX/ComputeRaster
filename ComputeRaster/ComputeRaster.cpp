@@ -147,12 +147,14 @@ void ComputeRaster::LoadAssets()
 
 	Util::PipelineLayout pipelineLayout;
 	pipelineLayout.SetRange(0, DescriptorType::CBV, 1, 0);
+	if (!m_softGraphicsPipeline->SetAttribute(0, sizeof(uint32_t[4]), Format::R32G32B32A32_FLOAT, L"Normal"))
+		ThrowIfFailed(E_FAIL);
 	if (!m_softGraphicsPipeline->CreateVertexShaderLayout(pipelineLayout, 1))
 		ThrowIfFailed(E_FAIL);
 
 	// Create constant buffer
 	const auto& frameCount = SoftGraphicsPipeline::FrameCount;
-	if (!m_cbMatrices.Create(m_device, sizeof(XMFLOAT4X4) * frameCount, frameCount))
+	if (!m_cbMatrices.Create(m_device, sizeof(XMFLOAT4X4[2]) * frameCount, frameCount))
 		ThrowIfFailed(E_FAIL);
 	for (auto i = 0u; i < SoftGraphicsPipeline::FrameCount; ++i)
 	{
@@ -222,7 +224,7 @@ void ComputeRaster::LoadAssets()
 
 	// View initialization
 	m_focusPt = XMFLOAT3(0.0f, 4.0f, 0.0f);
-	m_eyePt = XMFLOAT3(4.0f, 6.0f, -20.0f);
+	m_eyePt = XMFLOAT3(0.0f, 8.0f, -20.0f);
 	const auto focusPt = XMLoadFloat3(&m_focusPt);
 	const auto eyePt = XMLoadFloat3(&m_eyePt);
 	const auto view = XMMatrixLookAtLH(eyePt, focusPt, XMVectorSet(0.0f, 1.0f, 0.0f, 1.0f));
@@ -244,12 +246,18 @@ void ComputeRaster::OnUpdate()
 	const auto eyePt = XMLoadFloat3(&m_eyePt);
 	const auto view = XMLoadFloat4x4(&m_view);
 	const auto proj = XMLoadFloat4x4(&m_proj);
-	//m_softGraphicsPipeline->UpdateFrame(m_frameIndex, eyePt, view * proj);
 	{
-		const auto pCb = reinterpret_cast<XMFLOAT4X4*>(m_cbMatrices.Map(m_frameIndex));
+		struct CBMatrices
+		{
+			XMMATRIX WorldViewProj;
+			XMMATRIX Normal;
+		};
+		const auto pCb = reinterpret_cast<CBMatrices*>(m_cbMatrices.Map(m_frameIndex));
 		const auto world = XMMatrixScaling(m_meshPosScale.w, m_meshPosScale.w, m_meshPosScale.w) *
 			XMMatrixTranslation(m_meshPosScale.x, m_meshPosScale.y, m_meshPosScale.z);
-		XMStoreFloat4x4(pCb, XMMatrixTranspose(world * view * proj));
+		const auto worldInv = XMMatrixInverse(nullptr, world);
+		pCb->WorldViewProj = XMMatrixTranspose(world * view * proj);
+		pCb->Normal = worldInv;
 	}
 }
 

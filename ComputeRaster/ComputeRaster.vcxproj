@@ -287,7 +287,9 @@ COPY /Y "$(OutDir)*.exe" "$(ProjectDir)..\Bin\"</Command>
   <ItemGroup>
     <None Include="Common\d3dx_dxgiformatconvert.inl" />
     <None Include="Content\Shaders\Common.hlsli" />
+    <None Include="Content\Shaders\PixelShader.hlsl" />
     <None Include="Content\Shaders\VertexShader.hlsl" />
+    <None Include="Content\Shaders\VSStage.hlsli" />
     <None Include="XUSG\Core\XUSGBlend.inl" />
     <None Include="XUSG\Core\XUSGDepthStencil.inl" />
     <None Include="XUSG\Core\XUSGRasterizer.inl" />

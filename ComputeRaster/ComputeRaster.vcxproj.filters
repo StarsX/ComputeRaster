@@ -193,6 +193,12 @@
     <None Include="Content\Shaders\VertexShader.hlsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Content\Shaders\VSStage.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Content\Shaders\PixelShader.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Content\Shaders\BinRaster.hlsl">

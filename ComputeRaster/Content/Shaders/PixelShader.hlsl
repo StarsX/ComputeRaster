@@ -5,34 +5,22 @@
 //--------------------------------------------------------------------------------------
 // Structures
 //--------------------------------------------------------------------------------------
-struct VSIn
+struct PSIn
 {
-	float3	Pos	: POSITION;
+	float4	Pos	: SV_POSITION;
 	float3	Nrm	: NORMAL;
-};
-
-struct VSOut
-{
-	float4 Pos	: SV_POSITION;
-	float3 Nrm	: NORMAL;
-};
-
-cbuffer cb
-{
-	matrix g_worldViewProj;
-	matrix g_normal;
 };
 
 //--------------------------------------------------------------------------------------
 // Vertex shader
 //--------------------------------------------------------------------------------------
-VSOut main(VSIn input)
+float4 main(PSIn input)
 {
-	VSOut output;
+	const float3 L = normalize(float3(1.0, 1.0, -1.0));
+	const float3 N = normalize(input.Nrm);
 
-	output.Pos = float4(input.Pos, 1.0);
-	output.Pos = mul(output.Pos, g_worldViewProj);
-	output.Nrm = mul(input.Nrm, (float3x3)g_normal);
+	const float lightAmt = saturate(dot(N, L));
+	const float ambient = N.y * 0.5 + 0.5;
 
-	return output;
+	return float4(lightAmt.xxx + ambient * 0.2, 1.0);
 }

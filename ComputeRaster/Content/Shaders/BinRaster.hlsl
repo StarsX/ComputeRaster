@@ -181,54 +181,38 @@ void BinPrimitive(float4 primVPos[3], uint primId)
 //--------------------------------------------------------------------------------------
 // Select min X
 //--------------------------------------------------------------------------------------
-float2 minX(float2 v0, float2 v1)
+uint GetMinX(uint i, uint j, float2 v[3])
 {
-	return v0.x < v1.x ? v0 : v1;
-}
-
-//--------------------------------------------------------------------------------------
-// Select max Y
-//--------------------------------------------------------------------------------------
-float2 maxY(float2 v0, float2 v1)
-{
-	return v0.y > v1.y ? v0 : v1;
+	return v[i].x < v[j].x ? i : j;
 }
 
 //--------------------------------------------------------------------------------------
 // Select top left as the first
 //--------------------------------------------------------------------------------------
-float2 GetV0(float2 v0, float2 v1)
+uint GetV0(uint i, uint j, float2 v[3])
 {
-	return v0.y < v1.y ? v0 : (v0.y == v1.y ? minX(v0, v1) : v1);
-}
-
-//--------------------------------------------------------------------------------------
-// Select the second
-//--------------------------------------------------------------------------------------
-float2 GetV1(float2 v0, float2 v1, float y0)
-{
-	return v0.y <= y0 ? v1 : (v1.y <= y0 ? v0 : minX(v0, v1));
+	return v[i].y < v[j].y ? i : (v[i].y == v[j].y ? GetMinX(i, j, v) : j);
 }
 
 //--------------------------------------------------------------------------------------
 // Sort vertices and compute the minimum pixel as well as
 // the maximum pixel possibly overlapped by the primitive.
 //--------------------------------------------------------------------------------------
-void SortAndComputeAABB(float4 primVPos[3], out float2 v[3],
-	out float2 minPt, out float2 maxPt)
+void ToTiledSpace(float4 primVPos[3], out float2 v[3], out float2 rangeY)
 {
 	float2 p[3];
 	[unroll]
 	for (uint i = 0; i < 3; ++i) p[i] = primVPos[i].xy / 8.0;
 
-	minPt = min(p[0], min(p[1], p[2]));
-	maxPt = max(p[0], max(p[1], p[2]));
-	minPt.y = max(floor(minPt.y) + 0.5, 0.0);
-	maxPt.y = min(ceil(maxPt.y) + 0.5, g_tileDim.y);
+	rangeY.x = min(p[0].y, min(p[1].y, p[2].y));
+	rangeY.y = max(p[0].y, max(p[1].y, p[2].y));
+	rangeY.x = max(floor(rangeY.x) + 0.5, 0.0);
+	rangeY.y = min(ceil(rangeY.y) + 0.5, g_tileDim.y);
 
-	v[0] = GetV0(GetV0(p[0], p[1]), p[2]);
-	v[1] = GetV1(GetV1(p[0], p[1], v[0].y), p[2], v[0].y);
-	v[2] = (p[0] + p[1] + p[2]) - (v[0] + v[1]);
+	const uint k = GetV0(GetV0(0, 1, p), 2, p);
+	v[0] = p[k];
+	v[1] = p[k + 2 < 3 ? k + 2 : k + 2 - 3];
+	v[2] = p[k + 1 < 3 ? k + 1 : k + 1 - 3];
 }
 
 //--------------------------------------------------------------------------------------
@@ -247,9 +231,9 @@ float2 ComputeKB(float2 v0, float2 v1)
 //--------------------------------------------------------------------------------------
 void BinPrimitive2(float4 primVPos[3], uint primId)
 {
-	// Create the AABB.
-	float2 v[3], minPt, maxPt;
-	SortAndComputeAABB(primVPos, v, minPt, maxPt);
+	// To tiled space.
+	float2 v[3], rangeY;
+	ToTiledSpace(primVPos, v, rangeY);
 
 	const float nearestZ = min(primVPos[0].z, min(primVPos[1].z, primVPos[2].z));
 
@@ -259,36 +243,39 @@ void BinPrimitive2(float4 primVPos[3], uint primId)
 	const float2 e21 = float2(-e12.x, v[2].x + e12.x * v[2].y);
 
 	float2 scan;
-	scan.x = e01.x * minPt.y + e01.y;
-	scan.y = e02.x * minPt.y + e02.y;
+	//scan.x = e01.x * rangeY.x + e01.y;
+	//scan.y = e02.x * rangeY.y + e02.y;
 
 	bool2 phase2 = false;
-	for (float y = minPt.y; y <= maxPt.y; ++y)
+	for (float y = rangeY.x; y <= rangeY.y; ++y)
 	{
 		if (!phase2.x && y > v[1].y)
 		{
-			scan.x = e12.x * y + e12.y;
+			//scan.x = e12.x * y + e12.y;
 			phase2.x = true;
 		}
 
 		if (!phase2.y && y > v[2].y)
 		{
-			scan.y = e21.x * y + e21.y;
+			//scan.y = e21.x * y + e21.y;
 			phase2.y = true;
 		}
 
-		uint2 scanLine;
-		scanLine.x = floor(scan.x);
-		scanLine.y = ceil(scan.y) + 1.0;
+		scan.x = phase2.x ? e12.x * y + e12.y : e01.x * y + e01.y;
+		scan.y = phase2.y ? e21.x * y + e21.y : e02.x * y + e02.y;
 
-		scanLine.x = max(scanLine.x, 0.0);
+		uint2 scanLine;
+		scanLine.x = min(scan.x, scan.y) - 0.5;
+		scanLine.y = max(scan.x, scan.y) + 1.5;
+
+		// Clip
+		scanLine.x = max(scanLine.x, 0);
 		scanLine.y = min(scanLine.y, g_tileDim.x);
 
-		if (scanLine.x < scanLine.y)
-			AppendPrimitive(primId, y, scanLine);
+		AppendPrimitive(primId, y, scanLine);
 
-		scan.x += phase2.x ? e12.x : e01.x;
-		scan.y += phase2.y ? e21.x : e02.x;
+		//scan.x += phase2.x ? e12.x : e01.x;
+		//scan.y += phase2.y ? e21.x : e02.x;
 	}
 }
 
