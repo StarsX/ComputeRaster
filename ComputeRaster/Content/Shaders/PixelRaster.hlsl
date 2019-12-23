@@ -7,12 +7,20 @@
 #include "PixelShader.hlsl"
 #undef main
 
+#define COMPUTE_ATTRIB(n) \
+	[unroll] \
+	for (i = 0; i < 3; ++i) primVAtt[i] = g_roVertexAtt[n][baseVIdx + i]; \
+	[unroll] \
+	for (i = 0; i < 3; ++i) primVAtt[i] *= primVPos[i].w; \
+	att = w.x * primVAtt[0] + w.y * primVAtt[1] + w.z * primVAtt[2]; \
+	input.Att##n = att * input.Pos.w;
+
 //--------------------------------------------------------------------------------------
 // Buffers
 //--------------------------------------------------------------------------------------
-Buffer<float4> g_roVertexPos : register (t0);
-StructuredBuffer<TiledPrim> g_roTiledPrimitives : register (t1);
-Buffer<float3> g_roVertexNrm : register (t2);
+Buffer<float4> g_roVertexPos;
+StructuredBuffer<TiledPrim> g_roTiledPrimitives;
+Buffer<float3> g_roVertexAtt[ATTRIB_COUNT];
 
 //--------------------------------------------------------------------------------------
 // UAV buffers
@@ -26,12 +34,12 @@ RWTexture2D<uint>	g_rwDepth;
 bool Overlaps(float2 pixelPos, float4 v[3], out float3 w)
 {
 	// Triangle edge equation setup.
-	const float a01 = v[0].y - v[1].y;
-	const float b01 = v[1].x - v[0].x;
-	const float a12 = v[1].y - v[2].y;
-	const float b12 = v[2].x - v[1].x;
-	const float a20 = v[2].y - v[0].y;
-	const float b20 = v[0].x - v[2].x;
+	const float3x2 n =
+	{
+		v[1].y - v[2].y, v[2].x - v[1].x,
+		v[2].y - v[0].y, v[0].x - v[2].x,
+		v[0].y - v[1].y, v[1].x - v[0].x,
+	};
 
 	// Calculate barycentric coordinates at min corner.
 	const float2 minPoint = min(v[0].xy, min(v[1].xy, v[2].xy));
@@ -40,10 +48,8 @@ bool Overlaps(float2 pixelPos, float4 v[3], out float3 w)
 	w.z = determinant(v[0].xy, v[1].xy, minPoint);
 
 	// If pixel is inside of all edges, set pixel.
-	const float2 dist = pixelPos - minPoint;
-	w.x += (a12 * dist.x) + (b12 * dist.y);
-	w.y += (a20 * dist.x) + (b20 * dist.y);
-	w.z += (a01 * dist.x) + (b01 * dist.y);
+	const float2 disp = pixelPos - minPoint;
+	w += mul(n, disp);
 
 	return w.x >= 0.0 && w.y >= 0.0 && w.z >= 0.0;
 }
@@ -86,14 +92,39 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 	const float rhw = w.x * primVPos[0].w + w.y * primVPos[1].w + w.z * primVPos[2].w;
 	input.Pos.w = 1.0 / rhw;
 
-	float3 primVAtt[3];
-	[unroll]
-	for (i = 0; i < 3; ++i) primVAtt[i] = g_roVertexNrm[baseVIdx + i];
-	[unroll]
-	for (i = 0; i < 3; ++i) primVAtt[i] *= primVPos[i].w;
-	const float3 nrm = w.x * primVAtt[0] + w.y * primVAtt[1] + w.z * primVAtt[2];
-	input.Nrm = nrm * input.Pos.w;
+	float3 primVAtt[3], att;
+#if ATTRIB_COUNT > 0
+	COMPUTE_ATTRIB(0);
+#endif
+
+#if ATTRIB_COUNT > 1
+	COMPUTE_ATTRIB(1);
+#endif
+
+#if ATTRIB_COUNT > 2
+	COMPUTE_ATTRIB(2);
+#endif
+
+#if ATTRIB_COUNT > 3
+	COMPUTE_ATTRIB(3);
+#endif
+
+#if ATTRIB_COUNT > 4
+	COMPUTE_ATTRIB(4);
+#endif
+
+#if ATTRIB_COUNT > 5
+	COMPUTE_ATTRIB(5);
+#endif
+
+#if ATTRIB_COUNT > 6
+	COMPUTE_ATTRIB(6);
+#endif
+
+#if ATTRIB_COUNT > 7
+	COMPUTE_ATTRIB(7);
+#endif
 
 	//g_rwRenderTarget[pixelPos] = float4(w, 1.0);
-	g_rwRenderTarget[pixelPos] = PSMain(input);
+	g_rwRenderTarget[pixelPos] = PSMain(input);	// Call pixel shader
 }

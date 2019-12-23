@@ -4,17 +4,20 @@
 
 #include "Common.hlsli"
 
+#define HI_Z 1
+
 //--------------------------------------------------------------------------------------
 // Buffers
 //--------------------------------------------------------------------------------------
 Buffer<float4>		g_roVertexPos;
-//Texture2D<float>	g_txBinDepthMax;
 
 //--------------------------------------------------------------------------------------
 // UAV buffers
 //--------------------------------------------------------------------------------------
 RWStructuredBuffer<uint> g_rwTilePrimCount;
 RWStructuredBuffer<TiledPrim> g_rwTiledPrimitives;
+
+globallycoherent
 RWTexture2D<uint> g_rwHiZ;
 
 //--------------------------------------------------------------------------------------
@@ -90,14 +93,11 @@ void Conserves(out float2 cv[3], float4 primVPos[3])
 //--------------------------------------------------------------------------------------
 // Check if the tile is overlapped by a straight line with a certain thickness.
 //--------------------------------------------------------------------------------------
-bool Overlaps(float2 tile, float a01, float b01, float a12, float b12,
-	float a20, float b20, float2 minPoint, float3 w)
+bool Overlap(float2 tile, float3x2 n, float2 minPoint, float3 w)
 {
 	// If pixel is inside of all edges, set pixel.
-	float2 dist = tile + 0.5 - minPoint;
-	w.x += (a12 * dist.x) + (b12 * dist.y);
-	w.y += (a20 * dist.x) + (b20 * dist.y);
-	w.z += (a01 * dist.x) + (b01 * dist.y);
+	const float2 disp = tile + 0.5 - minPoint;
+	w += mul(n, disp);
 
 	return  w.x >= 0.0 && w.y >= 0.0 && w.z >= 0.0;
 }
@@ -106,7 +106,7 @@ bool Overlaps(float2 tile, float a01, float b01, float a12, float b12,
 // Appends the pointer to the first vertex together with its
 // clipping parameters in clip space at the end of BfTiledCurves.
 //--------------------------------------------------------------------------------------
-void AppendPrimitive(uint primId, uint tileY, inout uint2 scanLine)
+void AppendPrimitive(uint primId, uint tileY, inout uint3 scanLine)
 {
 	const uint scanLineLen = scanLine.y - scanLine.x;
 
@@ -122,7 +122,8 @@ void AppendPrimitive(uint primId, uint tileY, inout uint2 scanLine)
 		++tiledPrim.TileIdx;
 	}
 
-	scanLine.x = 0xffffffff;
+	scanLine.x = scanLine.y;
+	scanLine.y = scanLine.z;
 }
 
 //--------------------------------------------------------------------------------------
@@ -142,13 +143,13 @@ void BinPrimitive(float4 primVPos[3], uint primId)
 	Conserves(v, primVPos);
 
 	// Triangle edge equation setup.
-	const float a01 = v[0].y - v[1].y;
-	const float b01 = v[1].x - v[0].x;
-	const float a12 = v[1].y - v[2].y;
-	const float b12 = v[2].x - v[1].x;
-	const float a20 = v[2].y - v[0].y;
-	const float b20 = v[0].x - v[2].x;
-
+	const float3x2 n =
+	{
+		v[1].y - v[2].y, v[2].x - v[1].x,
+		v[2].y - v[0].y, v[0].x - v[2].x,
+		v[0].y - v[1].y, v[1].x - v[0].x,
+	};
+	
 	// Calculate barycentric coordinates at min corner.
 	float3 w;
 	const float2 minPoint = min(v[0], min(v[1], v[2]));
@@ -156,57 +157,59 @@ void BinPrimitive(float4 primVPos[3], uint primId)
 	w.y = determinant(v[2], v[0], minPoint);
 	w.z = determinant(v[0], v[1], minPoint);
 
+	uint2 tile;
 	for (uint i = minTile.y; i <= maxTile.y; ++i)
 	{
-		uint2 scanLine = uint2(0xffffffff, 0);
-		uint2 tile = uint2(minTile.x, i);
+		uint3 scanLine = uint3(0xffffffff, 0u.xx);
+		tile.y = i;
 
-		bool beenOverlap = false;
-		bool needBreak = false;
-		bool isOverlap = Overlaps(tile, a01, b01, a12, b12, a20, b20, minPoint, w);
 		for (uint j = minTile.x; j <= maxTile.x; ++j)
 		{
-			//const uint2 tile = uint2(j, i);
-			//if (g_rwHiZ[tile] <= zMin) continue; 
-
-			// For next tile
-			bool nextOverlap = false;
-			if (isOverlap || !beenOverlap)
-			{
-				tile = uint2(j + 1, i);
-				nextOverlap = Overlaps(tile, a01, b01, a12, b12, a20, b20, minPoint, w);
-			}
-
 			// Tile overlap tests
-			if (isOverlap)
-			{
-#if 0
-				uint hiZ;
-				tile = uint2(j, i);
-				if (beenOverlap && nextOverlap && i < maxTile.y)
-					InterlockedMin(g_rwHiZ[tile], zMax, hiZ);
-				else hiZ = g_rwHiZ[tile];
-				if (hiZ < zMin) scanLine.y = j; // Depth Test failed for this tile
-#endif
-
+			tile.x = j;
+			if (Overlap(tile, n, minPoint, w))
 				scanLine.x = scanLine.x == 0xffffffff ? j : scanLine.x;
-				beenOverlap = true;
-			}
-			else
-			{
-				scanLine.y = j;
-				needBreak = scanLine.x < scanLine.y;
-			}
+			else scanLine.y = j;
 
 			scanLine.y = j == maxTile.x ? j : scanLine.y;
+			if (scanLine.x < scanLine.y) break;
+		}
 
-			if (scanLine.x < scanLine.y) AppendPrimitive(primId, i, scanLine);
-			if (needBreak) break;
-			isOverlap = nextOverlap;
+		scanLine.z = scanLine.y;
+		const uint loopCount = scanLine.z - scanLine.x;
+
+		[allow_uav_condition]
+		for (uint k = 0; k < loopCount && scanLine.x < scanLine.y; ++k)	// Avoid time-out
+		//while (scanLine.x < scanLine.y)
+		{
+#if HI_Z
+			[allow_uav_condition]
+			for (uint j = scanLine.x; j < scanLine.y; ++j)
+			{
+				uint hiZ;
+				tile.x = j;
+				if (j > scanLine.x + 1 && j + 2 < scanLine.y && i > minTile.y&& i < maxTile.y)
+					InterlockedMin(g_rwHiZ[tile], zMax, hiZ);
+				else
+				{
+					DeviceMemoryBarrier();
+					hiZ = g_rwHiZ[tile];
+				}
+
+				if (hiZ < zMin)
+				{
+					// Depth Test failed for this tile
+					scanLine.y = j;
+					break;
+				}
+			}
+#endif
+			AppendPrimitive(primId, i, scanLine);
 		}
 	}
 }
 
+#if 0
 //--------------------------------------------------------------------------------------
 // Select min X
 //--------------------------------------------------------------------------------------
@@ -293,7 +296,7 @@ void BinPrimitive2(float4 primVPos[3], uint primId)
 		scan.x = phase2.x ? e12.x * y + e12.y : e01.x * y + e01.y;
 		scan.y = phase2.y ? e21.x * y + e21.y : e02.x * y + e02.y;
 
-		uint2 scanLine;
+		uint3 scanLine;
 		scanLine.x = min(scan.x, scan.y) - 0.5;
 		scanLine.y = max(scan.x, scan.y) + 1.5;
 
@@ -301,12 +304,14 @@ void BinPrimitive2(float4 primVPos[3], uint primId)
 		scanLine.x = max(scanLine.x, 0);
 		scanLine.y = min(scanLine.y, g_tileDim.x);
 
+		scanLine.z = scanLine.y;
 		AppendPrimitive(primId, y, scanLine);
 
 		//scan.x += phase2.x ? e12.x : e01.x;
 		//scan.y += phase2.y ? e21.x : e02.x;
 	}
 }
+#endif
 
 [numthreads(64, 1, 1)]
 void main(uint DTid : SV_DispatchThreadID)

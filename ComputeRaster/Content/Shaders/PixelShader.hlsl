@@ -14,7 +14,7 @@ struct PSIn
 //--------------------------------------------------------------------------------------
 // Vertex shader
 //--------------------------------------------------------------------------------------
-float4 main(PSIn input)
+float4 main(PSIn input) : SV_TARGET
 {
 	const float3 L = normalize(float3(1.0, 1.0, -1.0));
 	const float3 N = normalize(input.Nrm);
