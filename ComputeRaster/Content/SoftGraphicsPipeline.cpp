@@ -249,7 +249,7 @@ bool SoftGraphicsPipeline::createPipelines()
 		utilPipelineLayout.SetConstants(0, SizeOfInUint32(CBViewPort), 0);
 		utilPipelineLayout.SetRange(1, DescriptorType::SRV, 1, 0, 0,
 			DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
-		utilPipelineLayout.SetRange(2, DescriptorType::UAV, 2, 0, 0,
+		utilPipelineLayout.SetRange(2, DescriptorType::UAV, 3, 0, 0,
 			DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		X_RETURN(m_pipelineLayouts[BIN_RASTER], utilPipelineLayout.GetPipelineLayout(
 			m_pipelineLayoutCache, PipelineLayoutFlag::NONE, L"BinRasterLayout"), false);

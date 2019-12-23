@@ -13,9 +13,9 @@ Buffer<float4>		g_roVertexPos;
 //--------------------------------------------------------------------------------------
 // UAV buffers
 //--------------------------------------------------------------------------------------
-//RWStructuredBuffer<uint> g_rwPerBinCount;
 RWStructuredBuffer<uint> g_rwTilePrimCount;
 RWStructuredBuffer<TiledPrim> g_rwTiledPrimitives;
+RWTexture2D<uint> g_rwHiZ;
 
 //--------------------------------------------------------------------------------------
 // Clips a primitive to the view frustum defined in clip space.
@@ -121,7 +121,6 @@ void AppendPrimitive(uint primId, uint tileY, inout uint2 scanLine)
 		g_rwTiledPrimitives[baseIdx + i] = tiledPrim;
 		++tiledPrim.TileIdx;
 	}
-	//InterlockedAdd(g_rwPerBinCount[tiledPrim.TileIdx], 1);
 
 	scanLine.x = 0xffffffff;
 }
@@ -135,7 +134,8 @@ void BinPrimitive(float4 primVPos[3], uint primId)
 	uint2 minTile, maxTile;
 	ComputeAABB(primVPos, minTile, maxTile);
 
-	const float nearestZ = min(primVPos[0].z, min(primVPos[1].z, primVPos[2].z));
+	const uint zMin = asuint(min(primVPos[0].z, min(primVPos[1].z, primVPos[2].z)));
+	const uint zMax = asuint(max(primVPos[0].z, max(primVPos[1].z, primVPos[2].z)));
 
 	// Move the vertices for conservative rasterization.
 	float2 v[3];
@@ -159,16 +159,39 @@ void BinPrimitive(float4 primVPos[3], uint primId)
 	for (uint i = minTile.y; i <= maxTile.y; ++i)
 	{
 		uint2 scanLine = uint2(0xffffffff, 0);
+		uint2 tile = uint2(minTile.x, i);
 
+		bool beenOverlap = false;
 		bool needBreak = false;
+		bool isOverlap = Overlaps(tile, a01, b01, a12, b12, a20, b20, minPoint, w);
 		for (uint j = minTile.x; j <= maxTile.x; ++j)
 		{
-			const uint2 tile = uint2(j, i);
-			//if (g_txBinDepthMax[tile] <= nearestZ) continue; // Depth Test failed for this tile
+			//const uint2 tile = uint2(j, i);
+			//if (g_rwHiZ[tile] <= zMin) continue; 
+
+			// For next tile
+			bool nextOverlap = false;
+			if (isOverlap || !beenOverlap)
+			{
+				tile = uint2(j + 1, i);
+				nextOverlap = Overlaps(tile, a01, b01, a12, b12, a20, b20, minPoint, w);
+			}
 
 			// Tile overlap tests
-			if (Overlaps(tile, a01, b01, a12, b12, a20, b20, minPoint, w))
+			if (isOverlap)
+			{
+#if 0
+				uint hiZ;
+				tile = uint2(j, i);
+				if (beenOverlap && nextOverlap && i < maxTile.y)
+					InterlockedMin(g_rwHiZ[tile], zMax, hiZ);
+				else hiZ = g_rwHiZ[tile];
+				if (hiZ < zMin) scanLine.y = j; // Depth Test failed for this tile
+#endif
+
 				scanLine.x = scanLine.x == 0xffffffff ? j : scanLine.x;
+				beenOverlap = true;
+			}
 			else
 			{
 				scanLine.y = j;
@@ -179,6 +202,7 @@ void BinPrimitive(float4 primVPos[3], uint primId)
 
 			if (scanLine.x < scanLine.y) AppendPrimitive(primId, i, scanLine);
 			if (needBreak) break;
+			isOverlap = nextOverlap;
 		}
 	}
 }
