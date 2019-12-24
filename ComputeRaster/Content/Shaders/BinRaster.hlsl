@@ -80,7 +80,7 @@ float2 Conserve(float2 pv, float2 cv, float2 nv)
 //--------------------------------------------------------------------------------------
 // Move the vertices for conservative rasterization.
 //--------------------------------------------------------------------------------------
-void Conserves(out float2 cv[3], float4 primVPos[3])
+void Conserve(out float2 cv[3], float4 primVPos[3])
 {
 	float2 v[3];
 	[unroll]
@@ -140,7 +140,7 @@ void BinPrimitive(float4 primVPos[3], uint primId)
 
 	// Move the vertices for conservative rasterization.
 	float2 v[3];
-	Conserves(v, primVPos);
+	Conserve(v, primVPos);
 
 	// Triangle edge equation setup.
 	const float3x2 n =
@@ -152,10 +152,10 @@ void BinPrimitive(float4 primVPos[3], uint primId)
 	
 	// Calculate barycentric coordinates at min corner.
 	float3 w;
-	const float2 minPoint = min(v[0], min(v[1], v[2]));
-	w.x = determinant(v[1], v[2], minPoint);
-	w.y = determinant(v[2], v[0], minPoint);
-	w.z = determinant(v[0], v[1], minPoint);
+	const float2 minPt = min(v[0], min(v[1], v[2]));
+	w.x = determinant(v[1], v[2], minPt);
+	w.y = determinant(v[2], v[0], minPt);
+	w.z = determinant(v[0], v[1], minPt);
 
 	uint2 tile;
 	for (uint i = minTile.y; i <= maxTile.y; ++i)
@@ -167,7 +167,7 @@ void BinPrimitive(float4 primVPos[3], uint primId)
 		{
 			// Tile overlap tests
 			tile.x = j;
-			if (Overlap(tile, n, minPoint, w))
+			if (Overlap(tile, n, minPt, w))
 				scanLine.x = scanLine.x == 0xffffffff ? j : scanLine.x;
 			else scanLine.y = j;
 
@@ -177,6 +177,7 @@ void BinPrimitive(float4 primVPos[3], uint primId)
 
 		scanLine.z = scanLine.y;
 		const uint loopCount = scanLine.z - scanLine.x;
+		const bool isInsideY = i > minTile.y && i < maxTile.y;
 
 		[allow_uav_condition]
 		for (uint k = 0; k < loopCount && scanLine.x < scanLine.y; ++k)	// Avoid time-out
@@ -188,7 +189,7 @@ void BinPrimitive(float4 primVPos[3], uint primId)
 			{
 				uint hiZ;
 				tile.x = j;
-				if (j > scanLine.x + 1 && j + 2 < scanLine.y && i > minTile.y&& i < maxTile.y)
+				if (j > scanLine.x + 1 && j + 2 < scanLine.y && isInsideY)
 					InterlockedMin(g_rwHiZ[tile], zMax, hiZ);
 				else
 				{

@@ -31,7 +31,7 @@ RWTexture2D<uint>	g_rwDepth;
 //--------------------------------------------------------------------------------------
 // Check if the tile is overlapped by a straight line with a certain thickness.
 //--------------------------------------------------------------------------------------
-bool Overlaps(float2 pixelPos, float4 v[3], out float3 w)
+bool Overlap(float2 pixelPos, float4 v[3], out float3 w)
 {
 	// Triangle edge equation setup.
 	const float3x2 n =
@@ -42,13 +42,13 @@ bool Overlaps(float2 pixelPos, float4 v[3], out float3 w)
 	};
 
 	// Calculate barycentric coordinates at min corner.
-	const float2 minPoint = min(v[0].xy, min(v[1].xy, v[2].xy));
-	w.x = determinant(v[1].xy, v[2].xy, minPoint);
-	w.y = determinant(v[2].xy, v[0].xy, minPoint);
-	w.z = determinant(v[0].xy, v[1].xy, minPoint);
+	const float2 minPt = min(v[0].xy, min(v[1].xy, v[2].xy));
+	w.x = determinant(v[1].xy, v[2].xy, minPt);
+	w.y = determinant(v[2].xy, v[0].xy, minPt);
+	w.z = determinant(v[0].xy, v[1].xy, minPt);
 
 	// If pixel is inside of all edges, set pixel.
-	const float2 disp = pixelPos - minPoint;
+	const float2 disp = pixelPos - minPt;
 	w += mul(n, disp);
 
 	return w.x >= 0.0 && w.y >= 0.0 && w.z >= 0.0;
@@ -74,7 +74,7 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 	float3 w;
 	const uint2 pixelPos = (tile << 3) + GTid;
 	input.Pos.xy = pixelPos + 0.5;
-	if (!Overlaps(input.Pos.xy, primVPos, w)) return;
+	if (!Overlap(input.Pos.xy, primVPos, w)) return;
 
 	// Normalize barycentric coordinates.
 	const float area = determinant(primVPos[0].xy, primVPos[1].xy, primVPos[2].xy);
