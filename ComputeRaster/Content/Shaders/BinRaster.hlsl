@@ -9,21 +9,21 @@
 //--------------------------------------------------------------------------------------
 // Buffers
 //--------------------------------------------------------------------------------------
-Buffer<float4>		g_roVertexPos;
+Buffer<float4> g_roVertexPos;
 
 //--------------------------------------------------------------------------------------
 // UAV buffers
 //--------------------------------------------------------------------------------------
 RWStructuredBuffer<uint> g_rwTilePrimCount;
-RWStructuredBuffer<TiledPrim> g_rwTiledPrimitives;
+RWStructuredBuffer<TilePrim> g_rwTilePrimitives;
 
 globallycoherent
 RWTexture2D<uint> g_rwHiZ;
 
 //--------------------------------------------------------------------------------------
-// Clips a primitive to the view frustum defined in clip space.
+// Cull a primitive to the view frustum defined in clip space.
 //--------------------------------------------------------------------------------------
-bool ClipPrimitive(float4 primVPos[3])
+bool CullPrimitive(float3x4 primVPos)
 {
 	bool isFullOutside = true;
 
@@ -45,7 +45,7 @@ bool ClipPrimitive(float4 primVPos[3])
 // Compute the minimum pixel as well as the maximum pixel
 // possibly overlapped by the primitive.
 //--------------------------------------------------------------------------------------
-void ComputeAABB(float4 primVPos[3], out uint2 minTile, out uint2 maxTile)
+void ComputeAABB(float3x4 primVPos, out uint2 minTile, out uint2 maxTile)
 {
 	const float2 minPt = min(primVPos[0].xy, min(primVPos[1].xy, primVPos[2].xy));
 	const float2 maxPt = max(primVPos[0].xy, max(primVPos[1].xy, primVPos[2].xy));
@@ -62,44 +62,13 @@ void ComputeAABB(float4 primVPos[3], out uint2 minTile, out uint2 maxTile)
 }
 
 //--------------------------------------------------------------------------------------
-// Move the vertex for conservative rasterization.
+// Check if the point is overlapped by a primitive.
 //--------------------------------------------------------------------------------------
-float2 Conserve(float2 pv, float2 cv, float2 nv)
+bool Overlap(float2 pos, float3x2 n, float2 minPt, float3 w)
 {
-	float3 plane0 = cross(float3(cv - pv, 0.0), float3(pv, 1.0));
-	float3 plane1 = cross(float3(nv - cv, 0.0), float3(cv, 1.0));
+	w = ComputeUnormBarycentric(pos, n, minPt, w);
 
-	plane0.z -= dot(0.5, abs(plane0.xy));
-	plane1.z -= dot(0.5, abs(plane1.xy));
-
-	const float3 result = cross(plane0, plane1);
-
-	return result.xy / result.z;
-}
-
-//--------------------------------------------------------------------------------------
-// Move the vertices for conservative rasterization.
-//--------------------------------------------------------------------------------------
-void Conserve(out float2 cv[3], float4 primVPos[3])
-{
-	float2 v[3];
-	[unroll]
-	for (uint i = 0; i < 3; ++i) v[i] = primVPos[i].xy / 8.0;
-	cv[0] = Conserve(v[2], v[0], v[1]);
-	cv[1] = Conserve(v[0], v[1], v[2]);
-	cv[2] = Conserve(v[1], v[2], v[0]);
-}
-
-//--------------------------------------------------------------------------------------
-// Check if the tile is overlapped by a straight line with a certain thickness.
-//--------------------------------------------------------------------------------------
-bool Overlap(float2 tile, float3x2 n, float2 minPoint, float3 w)
-{
-	// If pixel is inside of all edges, set pixel.
-	const float2 disp = tile + 0.5 - minPoint;
-	w += mul(n, disp);
-
-	return  w.x >= 0.0 && w.y >= 0.0 && w.z >= 0.0;
+	return all(w >= 0.0);
 }
 
 //--------------------------------------------------------------------------------------
@@ -110,16 +79,16 @@ void AppendPrimitive(uint primId, uint tileY, inout uint3 scanLine)
 {
 	const uint scanLineLen = scanLine.y - scanLine.x;
 
-	TiledPrim tiledPrim;
-	tiledPrim.TileIdx = g_tileDim.x * tileY + scanLine.x;
-	tiledPrim.PrimId = primId;
+	TilePrim tilePrim;
+	tilePrim.TileIdx = g_tileDim.x * tileY + scanLine.x;
+	tilePrim.PrimId = primId;
 
 	uint baseIdx;
 	InterlockedAdd(g_rwTilePrimCount[0], scanLineLen, baseIdx);
 	for (uint i = 0; i < scanLineLen; ++i)
 	{
-		g_rwTiledPrimitives[baseIdx + i] = tiledPrim;
-		++tiledPrim.TileIdx;
+		g_rwTilePrimitives[baseIdx + i] = tilePrim;
+		++tilePrim.TileIdx;
 	}
 
 	scanLine.x = scanLine.y;
@@ -129,7 +98,7 @@ void AppendPrimitive(uint primId, uint tileY, inout uint3 scanLine)
 //--------------------------------------------------------------------------------------
 // Bin the primitive.
 //--------------------------------------------------------------------------------------
-void BinPrimitive(float4 primVPos[3], uint primId)
+void BinPrimitive(float3x4 primVPos, uint primId)
 {
 	// Create the AABB.
 	uint2 minTile, maxTile;
@@ -138,9 +107,8 @@ void BinPrimitive(float4 primVPos[3], uint primId)
 	const uint zMin = asuint(min(primVPos[0].z, min(primVPos[1].z, primVPos[2].z)));
 	const uint zMax = asuint(max(primVPos[0].z, max(primVPos[1].z, primVPos[2].z)));
 
-	// Move the vertices for conservative rasterization.
-	float2 v[3];
-	Conserve(v, primVPos);
+	// Scale the primitive for conservative rasterization.
+	const float3x2 v = Scale(primVPos);
 
 	// Triangle edge equation setup.
 	const float3x2 n =
@@ -167,7 +135,7 @@ void BinPrimitive(float4 primVPos[3], uint primId)
 		{
 			// Tile overlap tests
 			tile.x = j;
-			if (Overlap(tile, n, minPt, w))
+			if (Overlap(tile + 0.5, n, minPt, w))
 				scanLine.x = scanLine.x == 0xffffffff ? j : scanLine.x;
 			else scanLine.y = j;
 
@@ -231,7 +199,7 @@ uint GetV0(uint i, uint j, float2 v[3])
 // Sort vertices and compute the minimum pixel as well as
 // the maximum pixel possibly overlapped by the primitive.
 //--------------------------------------------------------------------------------------
-void ToTiledSpace(float4 primVPos[3], out float2 v[3], out float2 rangeY)
+void ToTiledSpace(float3x4 primVPos, out float2 v[3], out float2 rangeY)
 {
 	float2 p[3];
 	[unroll]
@@ -262,7 +230,7 @@ float2 ComputeKB(float2 v0, float2 v1)
 //--------------------------------------------------------------------------------------
 // Bin the primitive.
 //--------------------------------------------------------------------------------------
-void BinPrimitive2(float4 primVPos[3], uint primId)
+void BinPrimitive2(float3x4 primVPos, uint primId)
 {
 	// To tiled space.
 	float2 v[3], rangeY;
@@ -317,15 +285,15 @@ void BinPrimitive2(float4 primVPos[3], uint primId)
 [numthreads(64, 1, 1)]
 void main(uint DTid : SV_DispatchThreadID)
 {
-	float4 primVPos[3];
+	float3x4 primVPos;
 
 	// Load the vertex positions of the triangle
 	const uint baseVIdx = DTid * 3;
 	[unroll]
 	for (uint i = 0; i < 3; ++i) primVPos[i] = g_roVertexPos[baseVIdx + i];
 
-	// Clip the primitive.
-	if (ClipPrimitive(primVPos)) return;
+	// Cull the primitive.
+	if (CullPrimitive(primVPos)) return;
 
 	// Store each successful clipping result.
 	ToScreenSpace(primVPos);

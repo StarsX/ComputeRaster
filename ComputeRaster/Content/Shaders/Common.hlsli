@@ -5,7 +5,7 @@
 //--------------------------------------------------------------------------------------
 // Structure
 //--------------------------------------------------------------------------------------
-struct TiledPrim
+struct TilePrim
 {
 	uint TileIdx;
 	uint PrimId;
@@ -39,7 +39,7 @@ float4 ClipToScreen(float4 pos)
 //--------------------------------------------------------------------------------------
 // Transform a primitive given in clip space to screen space.
 //--------------------------------------------------------------------------------------
-void ToScreenSpace(inout float4 primVPos[3])
+void ToScreenSpace(inout float3x4 primVPos)
 {
 	[unroll]
 	for (uint i = 0; i < 3; ++i)
@@ -52,4 +52,71 @@ void ToScreenSpace(inout float4 primVPos[3])
 float determinant(float2 a, float2 b, float2 c)
 {
 	return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+}
+
+//--------------------------------------------------------------------------------------
+// Move the vertex by the pixel bias.
+//--------------------------------------------------------------------------------------
+float2 Scale(float2 pv, float2 cv, float2 nv, float pixelBias = 0.5)
+{
+	float3 plane0 = cross(float3(cv - pv, 0.0), float3(pv, 1.0));
+	float3 plane1 = cross(float3(nv - cv, 0.0), float3(cv, 1.0));
+
+	plane0.z -= dot(pixelBias, abs(plane0.xy));
+	plane1.z -= dot(pixelBias, abs(plane1.xy));
+
+	const float3 result = cross(plane0, plane1);
+
+	return result.xy / result.z;
+}
+
+//--------------------------------------------------------------------------------------
+// Scale the primitive vertices by the pixel bias.
+//--------------------------------------------------------------------------------------
+float3x2 Scale(float3x4 primVPos, float pixelBias = 0.5)
+{
+	float3x2 v, cv;
+	[unroll]
+	for (uint i = 0; i < 3; ++i) v[i] = primVPos[i].xy / 8.0;
+	cv[0] = Scale(v[2], v[0], v[1], pixelBias);
+	cv[1] = Scale(v[0], v[1], v[2], pixelBias);
+	cv[2] = Scale(v[1], v[2], v[0], pixelBias);
+
+	return cv;
+}
+
+//--------------------------------------------------------------------------------------
+// Check if the point is overlapped by a primitive.
+//--------------------------------------------------------------------------------------
+float3 ComputeUnormBarycentric(float2 pos, float3x2 n, float2 minPt, float3 w)
+{
+	const float2 disp = pos - minPt;
+	w += mul(n, disp);
+
+	return w;
+}
+
+//--------------------------------------------------------------------------------------
+// Check if the point is overlapped by a primitive.
+//--------------------------------------------------------------------------------------
+bool Overlap(float2 pos, float3x2 v, out float3 w)
+{
+	// Triangle edge equation setup.
+	const float3x2 n =
+	{
+		v[1].y - v[2].y, v[2].x - v[1].x,
+		v[2].y - v[0].y, v[0].x - v[2].x,
+		v[0].y - v[1].y, v[1].x - v[0].x,
+	};
+
+	// Calculate barycentric coordinates at min corner.
+	const float2 minPt = min(v[0].xy, min(v[1].xy, v[2].xy));
+	w.x = determinant(v[1].xy, v[2].xy, minPt);
+	w.y = determinant(v[2].xy, v[0].xy, minPt);
+	w.z = determinant(v[0].xy, v[1].xy, minPt);
+
+	// If pixel is inside of all edges, set pixel.
+	w = ComputeUnormBarycentric(pos, n, minPt, w);
+
+	return all(w >= 0.0);
 }

@@ -6,7 +6,13 @@
 #include "VertexShader.hlsl"
 #undef main
 
-#define SET_ATTRIB(n) g_rwVertexAtt[n][DTid] = output.Att##n
+#define CR_ATTRIBUTE_TYPE(t, c) t##c
+#define CR_ATTRIBUTE_FORMAT(n) CR_ATTRIBUTE_TYPE(CR_ATTRIBUTE_BASE_TYPE##n, CR_ATTRIBUTE_COMPONENT_COUNT##n)
+
+#define SET_ATTRIBUTE(n) g_rwVertexAtt##n[DTid] = output.CR_ATTRIBUTE##n
+
+#define DEFINED(n) defined(CR_ATTRIBUTE_BASE_TYPE##n) && defined(CR_ATTRIBUTE_COMPONENT_COUNT##n)
+#define DECLARE_ATTRIBUTE(n) RWBuffer<CR_ATTRIBUTE_FORMAT(n)> g_rwVertexAtt##n
 
 //--------------------------------------------------------------------------------------
 // Buffers
@@ -18,7 +24,7 @@ Buffer<uint> g_roIndexBuffer;
 // UAV buffers
 //--------------------------------------------------------------------------------------
 RWBuffer<float4> g_rwVertexPos;
-RWBuffer<float3> g_rwVertexAtt[ATTRIB_COUNT];
+#include "DeclareAttributes.hlsli"
 
 //--------------------------------------------------------------------------------------
 // Fetch shader
@@ -39,35 +45,5 @@ void main(uint DTid : SV_DispatchThreadID)
 
 	g_rwVertexPos[DTid] = output.Pos;
 
-#if ATTRIB_COUNT > 0
-	SET_ATTRIB(0);
-#endif
-
-#if ATTRIB_COUNT > 1
-	SET_ATTRIB(1);
-#endif
-
-#if ATTRIB_COUNT > 2
-	SET_ATTRIB(2);
-#endif
-
-#if ATTRIB_COUNT > 3
-	SET_ATTRIB(3);
-#endif
-
-#if ATTRIB_COUNT > 4
-	SET_ATTRIB(4);
-#endif
-
-#if ATTRIB_COUNT > 5
-	SET_ATTRIB(5);
-#endif
-
-#if ATTRIB_COUNT > 6
-	SET_ATTRIB(6);
-#endif
-
-#if ATTRIB_COUNT > 7
-	SET_ATTRIB(7);
-#endif
+#include "SetAttributes.hlsli"
 }
