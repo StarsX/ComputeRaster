@@ -20,13 +20,17 @@ public:
 	virtual ~SoftGraphicsPipeline();
 
 	bool Init(const XUSG::CommandList& commandList, std::vector<XUSG::Resource>& uploaders);
-	bool CreateVertexShaderLayout(XUSG::Util::PipelineLayout& utilPipelineLayout, uint32_t slotCount);
+	bool CreateVertexShaderLayout(XUSG::Util::PipelineLayout& pipelineLayout,
+		uint32_t slotCount = 0, int32_t srvBindingMax = -1, int32_t uavBindingMax = -1);
+	bool CreatePixelShaderLayout(XUSG::Util::PipelineLayout& pipelineLayout, uint32_t slotCount = 0,
+		int32_t cbvBindingMax = -1, int32_t srvBindingMax = -1, int32_t uavBindingMax = -1);
 	void SetAttribute(uint32_t i, uint32_t stride, XUSG::Format format, const wchar_t* name = L"Attribute");
 	void SetVertexBuffer(const XUSG::Descriptor& vertexBufferView);
 	void SetIndexBuffer(const XUSG::Descriptor& indexBufferView);
 	void SetRenderTargets(XUSG::Texture2D* pColorTarget, DepthBuffer* pDepth);
 	void SetViewport(const XUSG::Viewport& viewport);
 	void VSSetDescriptorTable(uint32_t i, const XUSG::DescriptorTable& descriptorTable);
+	void PSSetDescriptorTable(uint32_t i, const XUSG::DescriptorTable& descriptorTable);
 	void ClearFloat(const XUSG::Texture2D& target, const float clearValues[4]);
 	void ClearUint(const XUSG::Texture2D& target, const uint32_t clearValues[4]);
 	void ClearDepth(const float clearValue);
@@ -120,6 +124,7 @@ protected:
 
 	std::vector<ClearInfo> m_clears;
 	std::vector<XUSG::DescriptorTable> m_extVsTables;
+	std::vector<XUSG::DescriptorTable> m_extPsTables;
 	std::vector<XUSG::DescriptorTable> m_outTables;
 
 	XUSG::DescriptorTable	m_cbvTable;

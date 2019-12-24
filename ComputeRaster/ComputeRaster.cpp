@@ -145,13 +145,23 @@ void ComputeRaster::LoadAssets()
 	if (!m_softGraphicsPipeline->Init(m_commandList, uploaders))
 		ThrowIfFailed(E_FAIL);
 
-	Util::PipelineLayout pipelineLayout;
-	pipelineLayout.SetRange(0, DescriptorType::CBV, 1, 0);
-	m_softGraphicsPipeline->SetAttribute(0, sizeof(uint32_t[4]), Format::R32G32B32A32_FLOAT, L"Normal");
-	if (!m_softGraphicsPipeline->CreateVertexShaderLayout(pipelineLayout, 1))
-		ThrowIfFailed(E_FAIL);
+	{
+		Util::PipelineLayout pipelineLayout;
+		pipelineLayout.SetRange(0, DescriptorType::CBV, 1, 0);
+		m_softGraphicsPipeline->SetAttribute(0, sizeof(uint32_t[4]), Format::R32G32B32A32_FLOAT, L"Normal");
+		if (!m_softGraphicsPipeline->CreateVertexShaderLayout(pipelineLayout, 1))
+			ThrowIfFailed(E_FAIL);
+	}
 
-	// Create constant buffer
+	{
+		Util::PipelineLayout pipelineLayout;
+		pipelineLayout.SetRange(0, DescriptorType::CBV, 1, 0);
+		pipelineLayout.SetRange(1, DescriptorType::CBV, 1, 1);
+		if (!m_softGraphicsPipeline->CreatePixelShaderLayout(pipelineLayout, 2, 1))
+			ThrowIfFailed(E_FAIL);
+	}
+
+	// Create constant buffers
 	const auto& frameCount = SoftGraphicsPipeline::FrameCount;
 	if (!m_cbMatrices.Create(m_device, sizeof(XMFLOAT4X4[2]) * frameCount, frameCount))
 		ThrowIfFailed(E_FAIL);
@@ -159,7 +169,30 @@ void ComputeRaster::LoadAssets()
 	{
 		Util::DescriptorTable utilCbvTable;
 		utilCbvTable.SetDescriptors(0, 1, &m_cbMatrices.GetCBV(i));
-		m_cbvTables[i] = utilCbvTable.GetCbvSrvUavTable(m_softGraphicsPipeline->GetDescriptorTableCache());
+		m_cbvTables[CBV_TABLE_MATRICES + i] = utilCbvTable.GetCbvSrvUavTable(m_softGraphicsPipeline->GetDescriptorTableCache());
+	}
+
+	// Per-frame lighting
+	if (!m_cbLighting.Create(m_device, sizeof(XMFLOAT4[3]) * frameCount, frameCount))
+		ThrowIfFailed(E_FAIL);
+	for (auto i = 0u; i < SoftGraphicsPipeline::FrameCount; ++i)
+	{
+		Util::DescriptorTable utilCbvTable;
+		utilCbvTable.SetDescriptors(0, 1, &m_cbLighting.GetCBV(i));
+		m_cbvTables[CBV_TABLE_LIGHTING + i] = utilCbvTable.GetCbvSrvUavTable(m_softGraphicsPipeline->GetDescriptorTableCache());
+	}
+
+	// Immutable material
+	{
+		XMFLOAT3 baseColor(1.0f, 1.0f, 0.5f);
+		if (!m_cbMaterial.Create(m_device, sizeof(XMFLOAT3), 1, nullptr, MemoryType::DEFAULT))
+			ThrowIfFailed(E_FAIL);
+		uploaders.emplace_back();
+		m_cbMaterial.Upload(m_commandList, uploaders.back(), &baseColor, sizeof(XMFLOAT4));
+
+		Util::DescriptorTable utilCbvTable;
+		utilCbvTable.SetDescriptors(0, 1, &m_cbMaterial.GetCBV());
+		m_cbvTables[CBV_TABLE_MATERIAL] = utilCbvTable.GetCbvSrvUavTable(m_softGraphicsPipeline->GetDescriptorTableCache());
 	}
 
 #if 1
@@ -257,6 +290,19 @@ void ComputeRaster::OnUpdate()
 		const auto worldInv = XMMatrixInverse(nullptr, world);
 		pCb->WorldViewProj = XMMatrixTranspose(world * view * proj);
 		pCb->Normal = worldInv;
+	}
+
+	{
+		struct CBLighting
+		{
+			XMFLOAT4 AmbientColor;
+			XMFLOAT4 LightColor;
+			XMFLOAT3 LightPt;
+		};
+		const auto pCb = reinterpret_cast<CBLighting*>(m_cbLighting.Map(m_frameIndex));
+		pCb->AmbientColor = XMFLOAT4(0.6f, 0.7f, 1.0f, 0.2f);
+		pCb->LightColor = XMFLOAT4(1.0f, 0.7f, 0.5f, static_cast<float>(sin(time)) * 0.3f + 0.7f);
+		XMStoreFloat3(&pCb->LightPt, XMVectorSet(1.0f, 1.0f, -1.0, 0.0f));
 	}
 }
 
@@ -406,7 +452,9 @@ void ComputeRaster::PopulateCommandList()
 	m_softGraphicsPipeline->SetViewport(Viewport(0.0f, 0.0f, (float)m_width, (float)m_height));
 	m_softGraphicsPipeline->SetVertexBuffer(m_vb.GetSRV());
 	m_softGraphicsPipeline->SetIndexBuffer(m_ib.GetSRV());
-	m_softGraphicsPipeline->VSSetDescriptorTable(0, m_cbvTables[m_frameIndex]);
+	m_softGraphicsPipeline->VSSetDescriptorTable(0, m_cbvTables[CBV_TABLE_MATRICES + m_frameIndex]);
+	m_softGraphicsPipeline->PSSetDescriptorTable(0, m_cbvTables[CBV_TABLE_LIGHTING + m_frameIndex]);
+	m_softGraphicsPipeline->PSSetDescriptorTable(1, m_cbvTables[CBV_TABLE_MATERIAL]);
 	m_softGraphicsPipeline->DrawIndexed(m_commandList, m_numIndices);
 
 	{

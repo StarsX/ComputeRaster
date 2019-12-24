@@ -10,7 +10,6 @@ using namespace DirectX;
 using namespace XUSG;
 
 const uint32_t MAX_PIXEL_COUNT = (UINT32_MAX >> 4) + 1;
-const uint32_t MAX_VERTEX_COUNT = (UINT32_MAX >> 8) + 1;
 
 SoftGraphicsPipeline::SoftGraphicsPipeline(const Device& device) :
 	m_device(device),
@@ -45,7 +44,8 @@ bool SoftGraphicsPipeline::Init(const CommandList& commandList, vector<Resource>
 	return true;
 }
 
-bool SoftGraphicsPipeline::CreateVertexShaderLayout(Util::PipelineLayout& pipelineLayout, uint32_t slotCount)
+bool SoftGraphicsPipeline::CreateVertexShaderLayout(Util::PipelineLayout& pipelineLayout,
+	uint32_t slotCount, int32_t srvBindingMax, int32_t uavBindingMax)
 {
 	m_extVsTables.resize(slotCount);
 	const auto numUAVs = static_cast<uint32_t>(m_vertexAttribs.size()) + 1;
@@ -53,38 +53,41 @@ bool SoftGraphicsPipeline::CreateVertexShaderLayout(Util::PipelineLayout& pipeli
 
 	// Create pipeline layouts
 	{
-		pipelineLayout.SetRange(slotCount, DescriptorType::SRV, 1, 0, 0, DescriptorRangeFlag::DATA_STATIC);
-		pipelineLayout.SetRange(slotCount + 1, DescriptorType::UAV, numUAVs, 0, 0,
-			DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
+		pipelineLayout.SetRange(slotCount, DescriptorType::SRV, 1,
+			srvBindingMax + 1, 0, DescriptorRangeFlag::DATA_STATIC);
+		pipelineLayout.SetRange(slotCount + 1, DescriptorType::UAV, numUAVs,
+			uavBindingMax + 1, 0, DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		X_RETURN(m_pipelineLayouts[VERTEX_PROCESS], pipelineLayout.GetPipelineLayout(
 			m_pipelineLayoutCache, PipelineLayoutFlag::NONE, L"VertexShaderStageLayout"), false);
 	}
 
 	{
-		pipelineLayoutIndexed.SetRange(slotCount, DescriptorType::SRV, 2, 0, 0, DescriptorRangeFlag::DATA_STATIC);
-		pipelineLayoutIndexed.SetRange(slotCount + 1, DescriptorType::UAV, numUAVs, 0, 0,
-			DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
+		pipelineLayoutIndexed.SetRange(slotCount, DescriptorType::SRV, 2,
+			srvBindingMax + 1, 0, DescriptorRangeFlag::DATA_STATIC);
+		pipelineLayoutIndexed.SetRange(slotCount + 1, DescriptorType::UAV, numUAVs,
+			uavBindingMax + 1, 0, DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		X_RETURN(m_pipelineLayouts[VERTEX_INDEXED], pipelineLayoutIndexed.GetPipelineLayout(
 			m_pipelineLayoutCache, PipelineLayoutFlag::NONE, L"VertexShaderStageIndexedLayout"), false);
 	}
 
-	// Create pipelines
+	return true;
+}
+
+bool SoftGraphicsPipeline::CreatePixelShaderLayout(Util::PipelineLayout& pipelineLayout,
+	uint32_t slotCount, int32_t cbvBindingMax, int32_t srvBindingMax, int32_t uavBindingMax)
+{
+	m_extPsTables.resize(slotCount);
+
+	// Create pipeline layouts
 	{
-		N_RETURN(m_shaderPool.CreateShader(Shader::Stage::CS, VERTEX_PROCESS, L"VSStage.cso"), false);
-
-		Compute::State state;
-		state.SetPipelineLayout(m_pipelineLayouts[VERTEX_PROCESS]);
-		state.SetShader(m_shaderPool.GetShader(Shader::Stage::CS, VERTEX_PROCESS));
-		X_RETURN(m_pipelines[VERTEX_PROCESS], state.GetPipeline(m_computePipelineCache, L"VertexShaderStage"), false);
-	}
-
-	{
-		N_RETURN(m_shaderPool.CreateShader(Shader::Stage::CS, VERTEX_INDEXED, L"VSStageIndexed.cso"), false);
-
-		Compute::State state;
-		state.SetPipelineLayout(m_pipelineLayouts[VERTEX_INDEXED]);
-		state.SetShader(m_shaderPool.GetShader(Shader::Stage::CS, VERTEX_INDEXED));
-		X_RETURN(m_pipelines[VERTEX_INDEXED], state.GetPipeline(m_computePipelineCache, L"VertexShaderStageIndexed"), false);
+		const auto numSRVs = static_cast<uint32_t>(m_vertexAttribs.size()) + 2;
+		pipelineLayout.SetConstants(slotCount, SizeOfInUint32(CBViewPort), cbvBindingMax + 1);
+		pipelineLayout.SetRange(slotCount + 1, DescriptorType::SRV, numSRVs,
+			srvBindingMax + 1, 0, DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
+		pipelineLayout.SetRange(slotCount + 2, DescriptorType::UAV, 2,
+			uavBindingMax + 1, 0, DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
+		X_RETURN(m_pipelineLayouts[PIX_RASTER], pipelineLayout.GetPipelineLayout(
+			m_pipelineLayoutCache, PipelineLayoutFlag::NONE, L"PixelRasterLayout"), false);
 	}
 
 	return true;
@@ -143,12 +146,17 @@ void SoftGraphicsPipeline::SetViewport(const Viewport& viewport)
 	m_viewport = viewport;
 }
 
-void SoftGraphicsPipeline::VSSetDescriptorTable(uint32_t i, const XUSG::DescriptorTable& descriptorTable)
+void SoftGraphicsPipeline::VSSetDescriptorTable(uint32_t i, const DescriptorTable& descriptorTable)
 {
 	m_extVsTables[i] = descriptorTable;
 }
 
-void SoftGraphicsPipeline::ClearFloat(const XUSG::Texture2D& target, const float clearValues[4])
+void SoftGraphicsPipeline::PSSetDescriptorTable(uint32_t i, const DescriptorTable& descriptorTable)
+{
+	m_extPsTables[i] = descriptorTable;
+}
+
+void SoftGraphicsPipeline::ClearFloat(const Texture2D& target, const float clearValues[4])
 {
 	m_clears.emplace_back();
 	m_clears.back().IsUint = false;
@@ -243,7 +251,7 @@ DescriptorTableCache& SoftGraphicsPipeline::GetDescriptorTableCache()
 
 bool SoftGraphicsPipeline::createPipelines()
 {
-	// Create pipeline layouts
+	// Create pipeline layout
 	{
 		Util::PipelineLayout utilPipelineLayout;
 		utilPipelineLayout.SetConstants(0, SizeOfInUint32(CBViewPort), 0);
@@ -255,19 +263,25 @@ bool SoftGraphicsPipeline::createPipelines()
 			m_pipelineLayoutCache, PipelineLayoutFlag::NONE, L"BinRasterLayout"), false);
 	}
 
+	// Create compute pipelines
 	{
-		Util::PipelineLayout utilPipelineLayout;
-		const auto numSRVs = static_cast<uint32_t>(m_vertexAttribs.size()) + 2;
-		utilPipelineLayout.SetConstants(0, SizeOfInUint32(CBViewPort), 0);
-		utilPipelineLayout.SetRange(1, DescriptorType::SRV, numSRVs, 0, 0,
-			DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
-		utilPipelineLayout.SetRange(2, DescriptorType::UAV, 2, 0, 0,
-			DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
-		X_RETURN(m_pipelineLayouts[PIX_RASTER], utilPipelineLayout.GetPipelineLayout(
-			m_pipelineLayoutCache, PipelineLayoutFlag::NONE, L"PixelRasterLayout"), false);
+		N_RETURN(m_shaderPool.CreateShader(Shader::Stage::CS, VERTEX_PROCESS, L"VSStage.cso"), false);
+
+		Compute::State state;
+		state.SetPipelineLayout(m_pipelineLayouts[VERTEX_PROCESS]);
+		state.SetShader(m_shaderPool.GetShader(Shader::Stage::CS, VERTEX_PROCESS));
+		X_RETURN(m_pipelines[VERTEX_PROCESS], state.GetPipeline(m_computePipelineCache, L"VertexShaderStage"), false);
 	}
 
-	// Create compute pipelines
+	{
+		N_RETURN(m_shaderPool.CreateShader(Shader::Stage::CS, VERTEX_INDEXED, L"VSStageIndexed.cso"), false);
+
+		Compute::State state;
+		state.SetPipelineLayout(m_pipelineLayouts[VERTEX_INDEXED]);
+		state.SetShader(m_shaderPool.GetShader(Shader::Stage::CS, VERTEX_INDEXED));
+		X_RETURN(m_pipelines[VERTEX_INDEXED], state.GetPipeline(m_computePipelineCache, L"VertexShaderStageIndexed"), false);
+	}
+
 	{
 		N_RETURN(m_shaderPool.CreateShader(Shader::Stage::CS, BIN_RASTER, L"BinRaster.cso"), false);
 
@@ -361,7 +375,7 @@ void SoftGraphicsPipeline::draw(CommandList& commandList, uint32_t num, StageInd
 			nullptr, 1, nullptr, L"VertexPositions");
 		const auto attribCount = static_cast<uint32_t>(m_vertexAttribs.size());
 		for (auto i = 0u; i < attribCount; ++i)
-			m_vertexAttribs[i].Create(m_device, MAX_VERTEX_COUNT, m_attribInfo[i].Stride, m_attribInfo[i].Format,
+			m_vertexAttribs[i].Create(m_device, m_maxVertexCount, m_attribInfo[i].Stride, m_attribInfo[i].Format,
 				ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, ResourceState::COMMON, 1,
 				nullptr, 1, nullptr, m_attribInfo[i].Name.c_str());
 		createPipelines();
@@ -475,10 +489,13 @@ void SoftGraphicsPipeline::rasterizer(CommandList& commandList, uint32_t numTria
 	// Pixel raster
 	{
 		// Set descriptor tables
+		const auto baseIdx = static_cast<uint32_t>(m_extPsTables.size());
 		commandList.SetComputePipelineLayout(m_pipelineLayouts[PIX_RASTER]);
-		commandList.SetCompute32BitConstants(0, SizeOfInUint32(cbViewport), &cbViewport);
-		commandList.SetComputeDescriptorTable(1, m_srvTables[SRV_TABLE_RASTER]);
-		commandList.SetComputeDescriptorTable(2, m_outTables[0]);
+		for (auto i = 0u; i < baseIdx; ++i)
+			commandList.SetComputeDescriptorTable(i, m_extPsTables[i]);
+		commandList.SetCompute32BitConstants(baseIdx, SizeOfInUint32(cbViewport), &cbViewport);
+		commandList.SetComputeDescriptorTable(baseIdx + 1, m_srvTables[SRV_TABLE_RASTER]);
+		commandList.SetComputeDescriptorTable(baseIdx + 2, m_outTables[0]);
 
 		// Set pipeline state
 		commandList.SetPipelineState(m_pipelines[PIX_RASTER]);

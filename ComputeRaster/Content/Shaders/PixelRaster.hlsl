@@ -2,10 +2,10 @@
 // Copyright (c) XU, Tianchen. All rights reserved.
 //--------------------------------------------------------------------------------------
 
-#include "Common.hlsli"
 #define main PSMain
 #include "PixelShader.hlsl"
 #undef main
+#include "Common.hlsli"
 
 #define CR_PRIMITIVE_VERTEX_ATTRIBUTE_TYPE(t, c) t##3x##c
 #define CR_ATTRIBUTE_TYPE(t, c) t##c

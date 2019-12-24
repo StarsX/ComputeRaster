@@ -52,6 +52,9 @@
     <Filter Include="XUSG\Optional\Source Files">
       <UniqueIdentifier>{8cc5eb4b-ccd3-4c12-a409-1b7a651747c4}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\Internal">
+      <UniqueIdentifier>{ee928985-8694-4c41-93ae-de981feb8784}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Common\d3dx12.h">
@@ -187,37 +190,40 @@
     <None Include="Common\d3dx_dxgiformatconvert.inl">
       <Filter>Common\Shaders</Filter>
     </None>
-    <None Include="Content\Shaders\Common.hlsli">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="Content\Shaders\VertexShader.hlsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Content\Shaders\VSStage.hlsli">
       <Filter>Shaders</Filter>
     </None>
     <None Include="Content\Shaders\PixelShader.hlsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Content\Shaders\Common.hlsli">
+      <Filter>Shaders\Internal</Filter>
+    </None>
     <None Include="Content\Shaders\DeclareAttributes.hlsli">
-      <Filter>Shaders</Filter>
+      <Filter>Shaders\Internal</Filter>
     </None>
     <None Include="Content\Shaders\SetAttributes.hlsli">
-      <Filter>Shaders</Filter>
+      <Filter>Shaders\Internal</Filter>
+    </None>
+    <None Include="Content\Shaders\VSStage.hlsli">
+      <Filter>Shaders\Internal</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Content\Shaders\BinRaster.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>Shaders\Internal</Filter>
     </FxCompile>
     <FxCompile Include="Content\Shaders\PixelRaster.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>Shaders\Internal</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\TileRaster.hlsl">
+      <Filter>Shaders\Internal</Filter>
     </FxCompile>
     <FxCompile Include="Content\Shaders\VSStage.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>Shaders\Internal</Filter>
     </FxCompile>
     <FxCompile Include="Content\Shaders\VSStageIndexed.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>Shaders\Internal</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>
