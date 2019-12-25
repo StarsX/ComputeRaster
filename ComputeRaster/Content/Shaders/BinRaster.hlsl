@@ -2,9 +2,15 @@
 // Copyright (c) XU, Tianchen. All rights reserved.
 //--------------------------------------------------------------------------------------
 
+#include "SharedConst.h"
 #include "Common.hlsli"
 
-#define HI_Z 1
+#if USE_TRIPPLE_RASTER
+#define TILE_SIZE_LOG	6
+#else
+#define TILE_SIZE_LOG	3
+#endif
+#define TILE_SIZE		(1 << TILE_SIZE_LOG)
 
 //--------------------------------------------------------------------------------------
 // Buffers
@@ -53,22 +59,12 @@ void ComputeAABB(float3x4 primVPos, out uint2 minTile, out uint2 maxTile)
 	minTile = floor(minPt);
 	maxTile = floor(maxPt - 0.5);
 
-	// Shrink by 8x8
-	minTile >>= 3;
-	maxTile >>= 3;
+	// Shrink by (TILE_SIZE x TILE_SIZE)
+	minTile >>= TILE_SIZE_LOG;
+	maxTile >>= TILE_SIZE_LOG;
 
 	minTile = max(minTile, 0);
 	maxTile = min(maxTile + 1, g_tileDim - 1);
-}
-
-//--------------------------------------------------------------------------------------
-// Check if the point is overlapped by a primitive.
-//--------------------------------------------------------------------------------------
-bool Overlap(float2 pos, float3x2 n, float2 minPt, float3 w)
-{
-	w = ComputeUnormBarycentric(pos, n, minPt, w);
-
-	return all(w >= 0.0);
 }
 
 //--------------------------------------------------------------------------------------
@@ -108,7 +104,10 @@ void BinPrimitive(float3x4 primVPos, uint primId)
 	const uint zMax = asuint(max(primVPos[0].z, max(primVPos[1].z, primVPos[2].z)));
 
 	// Scale the primitive for conservative rasterization.
-	const float3x2 v = Scale(primVPos);
+	float3x2 v;
+	[unroll]
+	for (uint i = 0; i < 3; ++i) v[i] = primVPos[i].xy / TILE_SIZE;
+	v = Scale(v, 0.5);
 
 	// Triangle edge equation setup.
 	const float3x2 n =
@@ -126,7 +125,7 @@ void BinPrimitive(float3x4 primVPos, uint primId)
 	w.z = determinant(v[0], v[1], minPt);
 
 	uint2 tile;
-	for (uint i = minTile.y; i <= maxTile.y; ++i)
+	for (i = minTile.y; i <= maxTile.y; ++i)
 	{
 		uint3 scanLine = uint3(0xffffffff, 0u.xx);
 		tile.y = i;
@@ -203,7 +202,7 @@ void ToTiledSpace(float3x4 primVPos, out float2 v[3], out float2 rangeY)
 {
 	float2 p[3];
 	[unroll]
-	for (uint i = 0; i < 3; ++i) p[i] = primVPos[i].xy / 8.0;
+	for (uint i = 0; i < 3; ++i) p[i] = primVPos[i].xy / TILE_SIZE;
 
 	rangeY.x = min(p[0].y, min(p[1].y, p[2].y));
 	rangeY.y = max(p[0].y, max(p[1].y, p[2].y));

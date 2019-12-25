@@ -4,6 +4,8 @@
 
 #include "Common.hlsli"
 
+static uint g_outTileDim = g_tileDim.y;
+
 //--------------------------------------------------------------------------------------
 // Buffers
 //--------------------------------------------------------------------------------------
@@ -22,13 +24,13 @@ RWTexture2D<uint> g_rwHiZ;
 [numthreads(8, 8, 1)]
 void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : SV_GroupIndex)
 {
-	const TilePrim binPrim = g_roBinPrimitives[Gid];
-	const uint2 bin = uint2(binPrim.TileIdx % g_tileDim.x, binPrim.TileIdx / g_tileDim.x);
+	TilePrim tilePrim = g_roBinPrimitives[Gid];
+	const uint2 bin = uint2(tilePrim.TileIdx % g_tileDim.x, tilePrim.TileIdx / g_tileDim.x);
 
 	float3x4 primVPos;
 
 	// Load the vertex positions of the triangle
-	const uint baseVIdx = binPrim.PrimId * 3;
+	const uint baseVIdx = tilePrim.PrimId * 3;
 	[unroll]
 	for (uint i = 0; i < 3; ++i) primVPos[i] = g_roVertexPos[baseVIdx + i];
 
@@ -36,12 +38,15 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 	ToScreenSpace(primVPos);
 
 	// Scale the primitive for conservative rasterization.
-	const float3x2 v = Scale(primVPos);
+	float3x2 v;
+	[unroll]
+	for (i = 0; i < 3; ++i) v[i] = primVPos[i].xy / 8.0;
+	float3x2 sv = Scale(v, 0.5);
 
 	float3 w;
 	const uint2 tile = (bin << 3) + GTid;
 	const float2 pos = tile + 0.5;
-	if (!Overlap(pos, v, w)) return;
+	if (!Overlap(pos, sv, w)) return;
 
 #if HI_Z
 	// Depth test
@@ -49,10 +54,11 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 	const uint zMax = asuint(max(primVPos[0].z, max(primVPos[1].z, primVPos[2].z)));
 
 	// Shrink the primitive.
-	const float3x2 sv = Scale(primVPos, -0.5);
-
+	const float area = determinant(v[0], v[1], v[2]);
+	sv = Scale(v, -0.5);
+	
 	uint hiZ;
-	if (Overlap(pos, sv, w))
+	if (area >= 2.0 && Overlap(pos, sv, w))
 		InterlockedMin(g_rwHiZ[tile], zMax, hiZ);
 	else
 	{
@@ -63,9 +69,7 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 	if (hiZ < zMin) return;
 #endif
 
-	TilePrim tilePrim;
-	tilePrim.TileIdx = g_tileDim.x * tile.y + tile.x;
-	tilePrim.PrimId = binPrim.PrimId;
+	tilePrim.TileIdx = g_outTileDim * tile.y + tile.x;
 
 	uint idx;
 	InterlockedAdd(g_rwTilePrimCount[0], 1, idx);

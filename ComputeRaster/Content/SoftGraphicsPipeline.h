@@ -14,6 +14,9 @@ public:
 	{
 		XUSG::Texture2D Depth;
 		XUSG::Texture2D HiZ;
+#if USE_TRIPPLE_RASTER
+		XUSG::Texture2D TileZ;
+#endif
 	};
 
 	SoftGraphicsPipeline(const XUSG::Device& device);
@@ -54,6 +57,9 @@ protected:
 		VERTEX_PROCESS,
 		VERTEX_INDEXED,
 		BIN_RASTER,
+#if USE_TRIPPLE_RASTER
+		TILE_RASTER,
+#endif
 		PIX_RASTER,
 
 		NUM_STAGE
@@ -62,7 +68,8 @@ protected:
 	enum SRVTable : uint8_t
 	{
 		SRV_TABLE_VS,
-		SRV_TABLE_RASTER,
+		SRV_TABLE_RS,
+		SRV_TABLE_PS,
 
 		NUM_SRV_TABLE
 	};
@@ -71,6 +78,9 @@ protected:
 	{
 		UAV_TABLE_VS,
 		UAV_TABLE_BIN,
+#if USE_TRIPPLE_RASTER
+		UAV_TABLE_TILE,
+#endif
 
 		NUM_UAV_TABLE
 	};
@@ -146,8 +156,12 @@ protected:
 	std::vector<XUSG::TypedBuffer> m_vertexAttribs;
 	XUSG::TypedBuffer		m_vertexPos;
 	XUSG::StructuredBuffer	m_tilePrimCountReset;
+	XUSG::StructuredBuffer	m_binPrimCount;
+	XUSG::StructuredBuffer	m_binPrimitives;
+#if USE_TRIPPLE_RASTER
 	XUSG::StructuredBuffer	m_tilePrimCount;
-	XUSG::StructuredBuffer	m_tiledPrimitives;
+	XUSG::StructuredBuffer	m_tilePrimitives;
+#endif
 
 	XUSG::Viewport			m_viewport;
 

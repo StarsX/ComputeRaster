@@ -73,27 +73,35 @@ float2 Scale(float2 pv, float2 cv, float2 nv, float pixelBias = 0.5)
 //--------------------------------------------------------------------------------------
 // Scale the primitive vertices by the pixel bias.
 //--------------------------------------------------------------------------------------
-float3x2 Scale(float3x4 primVPos, float pixelBias = 0.5)
+float3x2 Scale(float3x2 v, float pixelBias)
 {
-	float3x2 v, cv;
-	[unroll]
-	for (uint i = 0; i < 3; ++i) v[i] = primVPos[i].xy / 8.0;
-	cv[0] = Scale(v[2], v[0], v[1], pixelBias);
-	cv[1] = Scale(v[0], v[1], v[2], pixelBias);
-	cv[2] = Scale(v[1], v[2], v[0], pixelBias);
+	float3x2 sv;
+	sv[0] = Scale(v[2], v[0], v[1], pixelBias);
+	sv[1] = Scale(v[0], v[1], v[2], pixelBias);
+	sv[2] = Scale(v[1], v[2], v[0], pixelBias);
 
-	return cv;
+	return sv;
 }
 
 //--------------------------------------------------------------------------------------
 // Check if the point is overlapped by a primitive.
 //--------------------------------------------------------------------------------------
-float3 ComputeUnormBarycentric(float2 pos, float3x2 n, float2 minPt, float3 w)
+float3 ComputeUnnormalizedBarycentric(float2 pos, float3x2 n, float2 minPt, float3 w)
 {
 	const float2 disp = pos - minPt;
 	w += mul(n, disp);
 
 	return w;
+}
+
+//--------------------------------------------------------------------------------------
+// Check if the point is overlapped by a primitive.
+//--------------------------------------------------------------------------------------
+bool Overlap(float2 pos, float3x2 n, float2 minPt, float3 w)
+{
+	w = ComputeUnnormalizedBarycentric(pos, n, minPt, w);
+
+	return all(w >= 0.0);
 }
 
 //--------------------------------------------------------------------------------------
@@ -116,7 +124,7 @@ bool Overlap(float2 pos, float3x2 v, out float3 w)
 	w.z = determinant(v[0].xy, v[1].xy, minPt);
 
 	// If pixel is inside of all edges, set pixel.
-	w = ComputeUnormBarycentric(pos, n, minPt, w);
+	w = ComputeUnnormalizedBarycentric(pos, n, minPt, w);
 
 	return all(w >= 0.0);
 }

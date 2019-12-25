@@ -40,9 +40,6 @@
     <Filter Include="Shaders">
       <UniqueIdentifier>{b260c74f-31ac-461c-aa6e-80f763f7e27d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Common\Shaders">
-      <UniqueIdentifier>{6dd91738-67f0-4f61-b496-ce52037c557a}</UniqueIdentifier>
-    </Filter>
     <Filter Include="XUSG\Optional">
       <UniqueIdentifier>{39a871a6-0a7f-4d06-b83f-8b043b482455}</UniqueIdentifier>
     </Filter>
@@ -186,9 +183,6 @@
     </None>
     <None Include="XUSG\Core\XUSGSampler.inl">
       <Filter>XUSG\Core\Source Files\Inc</Filter>
-    </None>
-    <None Include="Common\d3dx_dxgiformatconvert.inl">
-      <Filter>Common\Shaders</Filter>
     </None>
     <None Include="Content\Shaders\VertexShader.hlsl">
       <Filter>Shaders</Filter>

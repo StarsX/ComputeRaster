@@ -14,13 +14,9 @@
 #define COMPUTE_ATTRIBUTE_float(n) \
 	{ \
 		CR_PRIMITIVE_VERTEX_ATTRIBUTE_TYPE(CR_ATTRIBUTE_BASE_TYPE##n, CR_ATTRIBUTE_COMPONENT_COUNT##n) primVAtt; \
-		CR_ATTRIBUTE_FORMAT(n) attribute; \
 		[unroll] \
 		for (i = 0; i < 3; ++i) primVAtt[i] = g_roVertexAtt##n[baseVIdx + i]; \
-		[unroll] \
-		for (i = 0; i < 3; ++i) primVAtt[i] *= primVPos[i].w; \
-		attribute = mul(w, primVAtt); \
-		input.CR_ATTRIBUTE##n = attribute * input.Pos.w; \
+		input.CR_ATTRIBUTE##n = mul(persp, primVAtt); \
 	}
 
 #define COMPUTE_ATTRIBUTE_min16float(n) COMPUTE_ATTRIBUTE_float(n)
@@ -84,8 +80,9 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 	if (depth > depthMin) return;
 
 	// Interpolations
-	const float rhw = w.x * primVPos[0].w + w.y * primVPos[1].w + w.z * primVPos[2].w;
-	input.Pos.w = 1.0 / rhw;
+	float3 persp = float3(w.x * primVPos[0].w, w.y * primVPos[1].w, w.z * primVPos[2].w);
+	input.Pos.w = 1.0 / (persp.x + persp.y + persp.z);
+	persp *= input.Pos.w;
 	
 #include "SetAttributes.hlsli"
 
