@@ -2,9 +2,8 @@
 // Copyright (c) XU, Tianchen. All rights reserved.
 //--------------------------------------------------------------------------------------
 
+#include "SharedConst.h"
 #include "Common.hlsli"
-
-static uint g_outTileDim = g_tileDim.y;
 
 //--------------------------------------------------------------------------------------
 // Buffers
@@ -25,7 +24,7 @@ RWTexture2D<uint> g_rwHiZ;
 void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : SV_GroupIndex)
 {
 	TilePrim tilePrim = g_roBinPrimitives[Gid];
-	const uint2 bin = uint2(tilePrim.TileIdx % g_tileDim.x, tilePrim.TileIdx / g_tileDim.x);
+	const uint2 bin = uint2(tilePrim.TileIdx % g_binDim.x, tilePrim.TileIdx / g_binDim.x);
 
 	float3x4 primVPos;
 
@@ -40,11 +39,11 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 	// Scale the primitive for conservative rasterization.
 	float3x2 v;
 	[unroll]
-	for (i = 0; i < 3; ++i) v[i] = primVPos[i].xy / 8.0;
+	for (i = 0; i < 3; ++i) v[i] = primVPos[i].xy / TILE_SIZE;
 	float3x2 sv = Scale(v, 0.5);
 
 	float3 w;
-	const uint2 tile = (bin << 3) + GTid;
+	const uint2 tile = (bin << TILE_TO_BIN_LOG) + GTid;
 	const float2 pos = tile + 0.5;
 	if (!Overlap(pos, sv, w)) return;
 
@@ -69,7 +68,7 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 	if (hiZ < zMin) return;
 #endif
 
-	tilePrim.TileIdx = g_outTileDim * tile.y + tile.x;
+	tilePrim.TileIdx = g_tileDim.x * tile.y + tile.x;
 
 	uint idx;
 	InterlockedAdd(g_rwTilePrimCount[0], 1, idx);

@@ -13,7 +13,7 @@
 
 #include "DXFramework.h"
 #include "StepTimer.h"
-#include "SoftGraphicsPipeline.h"
+#include "Renderer.h"
 
 using namespace DirectX;
 
@@ -44,15 +44,6 @@ public:
 	virtual void ParseCommandLineArgs(wchar_t* argv[], int argc);
 
 private:
-	enum CBVTable : uint8_t
-	{
-		CBV_TABLE_MATRICES,
-		CBV_TABLE_LIGHTING = CBV_TABLE_MATRICES + SoftGraphicsPipeline::FrameCount,
-		CBV_TABLE_MATERIAL = CBV_TABLE_LIGHTING + SoftGraphicsPipeline::FrameCount,
-
-		NUM_CBV_TABLE
-	};
-
 	XUSG::SwapChain			m_swapChain;
 	XUSG::CommandAllocator	m_commandAllocators[SoftGraphicsPipeline::FrameCount];
 	XUSG::CommandQueue		m_commandQueue;
@@ -62,22 +53,11 @@ private:
 	XUSG::CommandList		m_commandList;
 
 	// App resources.
-	std::unique_ptr<SoftGraphicsPipeline> m_softGraphicsPipeline;
-	XUSG::VertexBuffer	m_vb;
-	XUSG::IndexBuffer	m_ib;
-	XUSG::ConstantBuffer m_cbMatrices;
-	XUSG::ConstantBuffer m_cbLighting;
-	XUSG::ConstantBuffer m_cbMaterial;
-	XUSG::Texture2D		m_colorTarget;
-	SoftGraphicsPipeline::DepthBuffer m_depth;
-	XMFLOAT4X4			m_proj;
+	std::unique_ptr<Renderer> m_renderer;
+	XMFLOAT4X4	m_proj;
 	XMFLOAT4X4	m_view;
 	XMFLOAT3	m_focusPt;
 	XMFLOAT3	m_eyePt;
-
-	uint32_t	m_numIndices;
-
-	XUSG::DescriptorTable m_cbvTables[NUM_CBV_TABLE];
 
 	// Synchronization objects.
 	uint32_t	m_frameIndex;

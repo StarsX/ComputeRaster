@@ -17,7 +17,6 @@ using namespace XUSG;
 
 ComputeRaster::ComputeRaster(uint32_t width, uint32_t height, std::wstring name) :
 	DXFramework(width, height, name),
-	m_numIndices(3),
 	m_frameIndex(0),
 	m_showFPS(true),
 	m_pausing(false),
@@ -121,17 +120,6 @@ void ComputeRaster::LoadPipeline()
 		N_RETURN(m_renderTargets[n].CreateFromSwapChain(m_device, m_swapChain, n), ThrowIfFailed(E_FAIL));
 		N_RETURN(m_device->GetCommandAllocator(m_commandAllocators[n], CommandListType::DIRECT), ThrowIfFailed(E_FAIL));
 	}
-
-	// Create Color target
-	N_RETURN(m_colorTarget.Create(m_device, m_width, m_height, Format::R8G8B8A8_UNORM, 1,
-		ResourceFlag::ALLOW_UNORDERED_ACCESS), ThrowIfFailed(E_FAIL));
-
-	m_softGraphicsPipeline = make_unique<SoftGraphicsPipeline>(m_device);
-	if (!m_softGraphicsPipeline) ThrowIfFailed(E_FAIL);
-
-	// Create depth buffer
-	N_RETURN(m_softGraphicsPipeline->CreateDepthBuffer(m_depth, m_width,
-		m_height, Format::R32_UINT), ThrowIfFailed(E_FAIL));
 }
 
 // Load the sample assets.
@@ -142,90 +130,9 @@ void ComputeRaster::LoadAssets()
 		m_commandAllocators[m_frameIndex], nullptr), ThrowIfFailed(E_FAIL));
 
 	vector<Resource> uploaders(0);
-	if (!m_softGraphicsPipeline->Init(m_commandList, uploaders))
-		ThrowIfFailed(E_FAIL);
-
-	{
-		Util::PipelineLayout pipelineLayout;
-		pipelineLayout.SetRange(0, DescriptorType::CBV, 1, 0);
-		m_softGraphicsPipeline->SetAttribute(0, sizeof(uint32_t[4]), Format::R32G32B32A32_FLOAT, L"Normal");
-		if (!m_softGraphicsPipeline->CreateVertexShaderLayout(pipelineLayout, 1))
-			ThrowIfFailed(E_FAIL);
-	}
-
-	{
-		Util::PipelineLayout pipelineLayout;
-		pipelineLayout.SetRange(0, DescriptorType::CBV, 1, 0);
-		pipelineLayout.SetRange(1, DescriptorType::CBV, 1, 1);
-		if (!m_softGraphicsPipeline->CreatePixelShaderLayout(pipelineLayout, 2, 1))
-			ThrowIfFailed(E_FAIL);
-	}
-
-	// Create constant buffers
-	const auto& frameCount = SoftGraphicsPipeline::FrameCount;
-	if (!m_cbMatrices.Create(m_device, sizeof(XMFLOAT4X4[2]) * frameCount, frameCount))
-		ThrowIfFailed(E_FAIL);
-	for (auto i = 0u; i < SoftGraphicsPipeline::FrameCount; ++i)
-	{
-		Util::DescriptorTable utilCbvTable;
-		utilCbvTable.SetDescriptors(0, 1, &m_cbMatrices.GetCBV(i));
-		m_cbvTables[CBV_TABLE_MATRICES + i] = utilCbvTable.GetCbvSrvUavTable(m_softGraphicsPipeline->GetDescriptorTableCache());
-	}
-
-	// Per-frame lighting
-	if (!m_cbLighting.Create(m_device, sizeof(XMFLOAT4[3]) * frameCount, frameCount))
-		ThrowIfFailed(E_FAIL);
-	for (auto i = 0u; i < SoftGraphicsPipeline::FrameCount; ++i)
-	{
-		Util::DescriptorTable utilCbvTable;
-		utilCbvTable.SetDescriptors(0, 1, &m_cbLighting.GetCBV(i));
-		m_cbvTables[CBV_TABLE_LIGHTING + i] = utilCbvTable.GetCbvSrvUavTable(m_softGraphicsPipeline->GetDescriptorTableCache());
-	}
-
-	// Immutable material
-	{
-		XMFLOAT3 baseColor(1.0f, 1.0f, 0.5f);
-		if (!m_cbMaterial.Create(m_device, sizeof(XMFLOAT3), 1, nullptr, MemoryType::DEFAULT))
-			ThrowIfFailed(E_FAIL);
-		uploaders.emplace_back();
-		m_cbMaterial.Upload(m_commandList, uploaders.back(), &baseColor, sizeof(XMFLOAT4));
-
-		Util::DescriptorTable utilCbvTable;
-		utilCbvTable.SetDescriptors(0, 1, &m_cbMaterial.GetCBV());
-		m_cbvTables[CBV_TABLE_MATERIAL] = utilCbvTable.GetCbvSrvUavTable(m_softGraphicsPipeline->GetDescriptorTableCache());
-	}
-
-#if 1
-	// Load inputs
-	ObjLoader objLoader;
-	if (!objLoader.Import(m_meshFileName.c_str(), true, true)) ThrowIfFailed(E_FAIL);
-	if (!m_softGraphicsPipeline->CreateVertexBuffer(m_commandList, m_vb, uploaders,
-		objLoader.GetVertices(), objLoader.GetNumVertices(), objLoader.GetVertexStride()))
-		ThrowIfFailed(E_FAIL);
-	m_numIndices = objLoader.GetNumIndices();
-	if (!m_softGraphicsPipeline->CreateIndexBuffer(m_commandList, m_ib,
-		uploaders, objLoader.GetIndices(), m_numIndices, Format::R32_UINT))
-		ThrowIfFailed(E_FAIL);
-#else
-	const float vbData[] =
-	{
-		0.0f, 9.0f, 0.0f,
-		0.0f, 0.0f, -1.0f,
-		5.0f, -1.0f, 0.0f,
-		0.0f, 0.0f, -1.0f,
-		-5.0f, -1.0f, 0.0f,
-		0.0f, 0.0f, -1.0f,
-	};
-	if (!m_softGraphicsPipeline->CreateVertexBuffer(m_commandList, m_vb,
-		uploaders, vbData, 3, sizeof(float[6])))
-		ThrowIfFailed(E_FAIL);
-
-	const uint16_t ibData[] = { 0, 1, 2 };
-	m_numIndices = 3;
-	if (!m_softGraphicsPipeline->CreateIndexBuffer(m_commandList, m_ib,
-		uploaders, ibData, m_numIndices, Format::R16_UINT))
-		ThrowIfFailed(E_FAIL);
-#endif
+	X_RETURN(m_renderer, make_unique<Renderer>(m_device), ThrowIfFailed(E_FAIL));
+	N_RETURN(m_renderer->Init(m_commandList, m_width, m_height, uploaders,
+		m_meshFileName.c_str(), m_meshPosScale), ThrowIfFailed(E_FAIL));
 
 	// Close the command list and execute it to begin the initial GPU setup.
 	ThrowIfFailed(m_commandList.Close());
@@ -278,32 +185,7 @@ void ComputeRaster::OnUpdate()
 	const auto eyePt = XMLoadFloat3(&m_eyePt);
 	const auto view = XMLoadFloat4x4(&m_view);
 	const auto proj = XMLoadFloat4x4(&m_proj);
-	{
-		struct CBMatrices
-		{
-			XMMATRIX WorldViewProj;
-			XMMATRIX Normal;
-		};
-		const auto pCb = reinterpret_cast<CBMatrices*>(m_cbMatrices.Map(m_frameIndex));
-		const auto world = XMMatrixScaling(m_meshPosScale.w, m_meshPosScale.w, m_meshPosScale.w) *
-			XMMatrixTranslation(m_meshPosScale.x, m_meshPosScale.y, m_meshPosScale.z);
-		const auto worldInv = XMMatrixInverse(nullptr, world);
-		pCb->WorldViewProj = XMMatrixTranspose(world * view * proj);
-		pCb->Normal = worldInv;
-	}
-
-	{
-		struct CBLighting
-		{
-			XMFLOAT4 AmbientColor;
-			XMFLOAT4 LightColor;
-			XMFLOAT3 LightPt;
-		};
-		const auto pCb = reinterpret_cast<CBLighting*>(m_cbLighting.Map(m_frameIndex));
-		pCb->AmbientColor = XMFLOAT4(0.6f, 0.7f, 1.0f, 0.2f);
-		pCb->LightColor = XMFLOAT4(1.0f, 0.7f, 0.5f, static_cast<float>(sin(time)) * 0.3f + 0.7f);
-		XMStoreFloat3(&pCb->LightPt, XMVectorSet(1.0f, 1.0f, -1.0, 0.0f));
-	}
+	m_renderer->UpdateFrame(m_frameIndex, view * proj, time);
 }
 
 // Render the scene.
@@ -440,29 +322,17 @@ void ComputeRaster::PopulateCommandList()
 	ThrowIfFailed(m_commandList.Reset(m_commandAllocators[m_frameIndex], nullptr));
 
 	// Record commands.
-	ResourceBarrier barriers[2];
-	auto numBarriers = m_colorTarget.SetBarrier(barriers, ResourceState::UNORDERED_ACCESS);
-	m_commandList.Barrier(numBarriers, barriers);
+	m_renderer->Render(m_commandList, m_frameIndex);
 
-	// Compute raster rendering
-	const float clearColor[] = { CLEAR_COLOR, 0.0f };
-	m_softGraphicsPipeline->SetRenderTargets(&m_colorTarget, &m_depth);
-	m_softGraphicsPipeline->ClearFloat(m_colorTarget, clearColor);
-	m_softGraphicsPipeline->ClearDepth(1.0f);
-	m_softGraphicsPipeline->SetViewport(Viewport(0.0f, 0.0f, (float)m_width, (float)m_height));
-	m_softGraphicsPipeline->SetVertexBuffer(m_vb.GetSRV());
-	m_softGraphicsPipeline->SetIndexBuffer(m_ib.GetSRV());
-	m_softGraphicsPipeline->VSSetDescriptorTable(0, m_cbvTables[CBV_TABLE_MATRICES + m_frameIndex]);
-	m_softGraphicsPipeline->PSSetDescriptorTable(0, m_cbvTables[CBV_TABLE_LIGHTING + m_frameIndex]);
-	m_softGraphicsPipeline->PSSetDescriptorTable(1, m_cbvTables[CBV_TABLE_MATERIAL]);
-	m_softGraphicsPipeline->DrawIndexed(m_commandList, m_numIndices);
-
+	// Copy to back buffer.
 	{
+		auto& colorTarget = m_renderer->GetColorTarget();
 		const TextureCopyLocation dst(m_renderTargets[m_frameIndex].GetResource().get(), 0);
-		const TextureCopyLocation src(m_colorTarget.GetResource().get(), 0);
+		const TextureCopyLocation src(colorTarget.GetResource().get(), 0);
 
-		numBarriers = m_renderTargets[m_frameIndex].SetBarrier(barriers, ResourceState::COPY_DEST);
-		numBarriers = m_colorTarget.SetBarrier(barriers, ResourceState::COPY_SOURCE, numBarriers);
+		ResourceBarrier barriers[2];
+		auto numBarriers = m_renderTargets[m_frameIndex].SetBarrier(barriers, ResourceState::COPY_DEST);
+		numBarriers = colorTarget.SetBarrier(barriers, ResourceState::COPY_SOURCE, numBarriers);
 		m_commandList.Barrier(numBarriers, barriers);
 
 		m_commandList.CopyTextureRegion(dst, 0, 0, 0, src);

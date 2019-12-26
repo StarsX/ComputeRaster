@@ -2,6 +2,7 @@
 // Copyright (c) XU, Tianchen. All rights reserved.
 //--------------------------------------------------------------------------------------
 
+#include "SharedConst.h"
 #define main PSMain
 #include "PixelShader.hlsl"
 #undef main
@@ -63,7 +64,7 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 
 	PSIn input;
 	float3 w;
-	const uint2 pixelPos = (tile << 3) + GTid;
+	const uint2 pixelPos = (tile << TILE_SIZE_LOG) + GTid;
 	input.Pos.xy = pixelPos + 0.5;
 	if (!Overlap(input.Pos.xy, (float3x2)primVPos, w)) return;
 

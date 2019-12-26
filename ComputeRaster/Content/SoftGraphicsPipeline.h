@@ -12,11 +12,9 @@ class SoftGraphicsPipeline
 public:
 	struct DepthBuffer
 	{
-		XUSG::Texture2D Depth;
-		XUSG::Texture2D HiZ;
-#if USE_TRIPPLE_RASTER
+		XUSG::Texture2D PixelZ;
 		XUSG::Texture2D TileZ;
-#endif
+		XUSG::Texture2D BinZ;
 	};
 
 	SoftGraphicsPipeline(const XUSG::Device& device);
@@ -40,7 +38,8 @@ public:
 	void Draw(XUSG::CommandList& commandList, uint32_t numVertices);
 	void DrawIndexed(XUSG::CommandList& commandList, uint32_t numIndices);
 
-	bool CreateDepthBuffer(DepthBuffer &depth, uint32_t width, uint32_t height, XUSG::Format format);
+	bool CreateDepthBuffer(DepthBuffer &depth, uint32_t width, uint32_t height,
+		XUSG::Format format, const wchar_t* name = L"Depth");
 	bool CreateVertexBuffer(const XUSG::CommandList& commandList, XUSG::VertexBuffer& vb,
 		std::vector<XUSG::Resource>& uploaders, const void* pData, uint32_t numVert,
 		uint32_t srtide, const wchar_t* name = L"VertexBuffer") const;
@@ -57,9 +56,7 @@ protected:
 		VERTEX_PROCESS,
 		VERTEX_INDEXED,
 		BIN_RASTER,
-#if USE_TRIPPLE_RASTER
 		TILE_RASTER,
-#endif
 		PIX_RASTER,
 
 		NUM_STAGE
@@ -69,6 +66,7 @@ protected:
 	{
 		SRV_TABLE_VS,
 		SRV_TABLE_RS,
+		SRV_TABLE_TR,
 		SRV_TABLE_PS,
 
 		NUM_SRV_TABLE
@@ -77,22 +75,21 @@ protected:
 	enum UAVTable : uint8_t
 	{
 		UAV_TABLE_VS,
-		UAV_TABLE_BIN,
-#if USE_TRIPPLE_RASTER
-		UAV_TABLE_TILE,
-#endif
+		UAV_TABLE_RS,
 
 		NUM_UAV_TABLE
 	};
 
 	struct CBViewPort
 	{
-		float x;
-		float y;
-		float w;
-		float h;
-		uint32_t numTileX;
-		uint32_t numTileY;
+		float TopLeftX;
+		float TopLeftY;
+		float Width;
+		float Height;
+		uint32_t NumTileX;
+		uint32_t NumTileY;
+		uint32_t NumBinX;
+		uint32_t NumBinY;
 	};
 
 	struct AttributeInfo
@@ -158,10 +155,8 @@ protected:
 	XUSG::StructuredBuffer	m_tilePrimCountReset;
 	XUSG::StructuredBuffer	m_binPrimCount;
 	XUSG::StructuredBuffer	m_binPrimitives;
-#if USE_TRIPPLE_RASTER
 	XUSG::StructuredBuffer	m_tilePrimCount;
 	XUSG::StructuredBuffer	m_tilePrimitives;
-#endif
 
 	XUSG::Viewport			m_viewport;
 

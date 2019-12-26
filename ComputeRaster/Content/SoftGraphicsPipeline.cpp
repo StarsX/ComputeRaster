@@ -28,23 +28,17 @@ SoftGraphicsPipeline::~SoftGraphicsPipeline()
 bool SoftGraphicsPipeline::Init(const CommandList& commandList, vector<Resource>& uploaders)
 {
 	const uint32_t tileBufferSize = (UINT32_MAX >> 4) + 1;
-#if USE_TRIPPLE_RASTER
 	const uint32_t binBufferSize = tileBufferSize >> 6;
-#else
-	const uint32_t binBufferSize = tileBufferSize;
-#endif
 
 	// Create buffers
-	N_RETURN(m_binPrimCount.Create(m_device, 3, sizeof(uint32_t), ResourceFlag::ALLOW_UNORDERED_ACCESS,
-		MemoryType::DEFAULT, ResourceState::COMMON, 1, nullptr, 1, nullptr, L"BinPrimitiveCount"), false);
-	N_RETURN(m_binPrimitives.Create(m_device, binBufferSize, sizeof(uint32_t[2]), ResourceFlag::ALLOW_UNORDERED_ACCESS,
-		MemoryType::DEFAULT, ResourceState::COMMON, 1, nullptr, 1, nullptr, L"BinPrimitives"), false);
-#if USE_TRIPPLE_RASTER
 	N_RETURN(m_tilePrimCount.Create(m_device, 3, sizeof(uint32_t), ResourceFlag::ALLOW_UNORDERED_ACCESS,
 		MemoryType::DEFAULT, ResourceState::COMMON, 1, nullptr, 1, nullptr, L"TilePrimitiveCount"), false);
 	N_RETURN(m_tilePrimitives.Create(m_device, tileBufferSize, sizeof(uint32_t[2]), ResourceFlag::ALLOW_UNORDERED_ACCESS,
 		MemoryType::DEFAULT, ResourceState::COMMON, 1, nullptr, 1, nullptr, L"TilePrimitives"), false);
-#endif
+	N_RETURN(m_binPrimCount.Create(m_device, 3, sizeof(uint32_t), ResourceFlag::ALLOW_UNORDERED_ACCESS,
+		MemoryType::DEFAULT, ResourceState::COMMON, 1, nullptr, 1, nullptr, L"BinPrimitiveCount"), false);
+	N_RETURN(m_binPrimitives.Create(m_device, binBufferSize, sizeof(uint32_t[2]), ResourceFlag::ALLOW_UNORDERED_ACCESS,
+		MemoryType::DEFAULT, ResourceState::COMMON, 1, nullptr, 1, nullptr, L"BinPrimitives"), false);
 
 	// create reset buffer for resetting TilePrimitiveCount
 	N_RETURN(createResetBuffer(commandList, uploaders), false);
@@ -65,18 +59,20 @@ bool SoftGraphicsPipeline::CreateVertexShaderLayout(Util::PipelineLayout& pipeli
 	// Create pipeline layouts
 	{
 		pipelineLayout.SetRange(slotCount, DescriptorType::SRV, 1,
-			srvBindingMax + 1, 0, DescriptorRangeFlag::DATA_STATIC);
+			srvBindingMax + 1, 0, DescriptorRangeFlag::DESCRIPTORS_VOLATILE);
 		pipelineLayout.SetRange(slotCount + 1, DescriptorType::UAV, numUAVs,
-			uavBindingMax + 1, 0, DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
+			uavBindingMax + 1, 0, DescriptorRangeFlag::DESCRIPTORS_VOLATILE |
+			DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		X_RETURN(m_pipelineLayouts[VERTEX_PROCESS], pipelineLayout.GetPipelineLayout(
 			m_pipelineLayoutCache, PipelineLayoutFlag::NONE, L"VertexShaderStageLayout"), false);
 	}
 
 	{
 		pipelineLayoutIndexed.SetRange(slotCount, DescriptorType::SRV, 2,
-			srvBindingMax + 1, 0, DescriptorRangeFlag::DATA_STATIC);
+			srvBindingMax + 1, 0, DescriptorRangeFlag::DESCRIPTORS_VOLATILE);
 		pipelineLayoutIndexed.SetRange(slotCount + 1, DescriptorType::UAV, numUAVs,
-			uavBindingMax + 1, 0, DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
+			uavBindingMax + 1, 0, DescriptorRangeFlag::DESCRIPTORS_VOLATILE |
+			DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		X_RETURN(m_pipelineLayouts[VERTEX_INDEXED], pipelineLayoutIndexed.GetPipelineLayout(
 			m_pipelineLayoutCache, PipelineLayoutFlag::NONE, L"VertexShaderStageIndexedLayout"), false);
 	}
@@ -129,11 +125,7 @@ void SoftGraphicsPipeline::SetRenderTargets(Texture2D* pColorTarget, DepthBuffer
 	m_pColorTarget = pColorTarget;
 	m_pDepth = pDepth;
 
-#if USE_TRIPPLE_RASTER
 	m_outTables.resize(pDepth ? 4 : 1);
-#else
-	m_outTables.resize(pDepth ? 3 : 1);
-#endif
 	{
 		Util::DescriptorTable utilUavTable;
 		utilUavTable.SetDescriptors(0, 1, &pColorTarget->GetUAV());
@@ -144,23 +136,21 @@ void SoftGraphicsPipeline::SetRenderTargets(Texture2D* pColorTarget, DepthBuffer
 	{
 		{
 			Util::DescriptorTable utilUavTable;
-			utilUavTable.SetDescriptors(0, 1, &pDepth->Depth.GetUAV());
+			utilUavTable.SetDescriptors(0, 1, &pDepth->PixelZ.GetUAV());
 			m_outTables[m_outTables.size() - 1] = utilUavTable.GetCbvSrvUavTable(m_descriptorTableCache);
 		}
 
 		{
 			Util::DescriptorTable utilUavTable;
-			utilUavTable.SetDescriptors(0, 1, &pDepth->HiZ.GetUAV());
+			utilUavTable.SetDescriptors(0, 1, &pDepth->TileZ.GetUAV());
 			m_outTables[m_outTables.size() - 2] = utilUavTable.GetCbvSrvUavTable(m_descriptorTableCache);
 		}
 
-#if USE_TRIPPLE_RASTER
 		{
 			Util::DescriptorTable utilUavTable;
-			utilUavTable.SetDescriptors(0, 1, &pDepth->TileZ.GetUAV());
+			utilUavTable.SetDescriptors(0, 1, &pDepth->BinZ.GetUAV());
 			m_outTables[m_outTables.size() - 3] = utilUavTable.GetCbvSrvUavTable(m_descriptorTableCache);
 		}
-#endif
 	}
 }
 
@@ -227,19 +217,18 @@ void SoftGraphicsPipeline::DrawIndexed(CommandList& commandList, uint32_t numInd
 	draw(commandList, numIndices, VERTEX_INDEXED);
 }
 
-bool SoftGraphicsPipeline::CreateDepthBuffer(DepthBuffer& depth, uint32_t width, uint32_t height, Format format)
+bool SoftGraphicsPipeline::CreateDepthBuffer(DepthBuffer& depth, uint32_t width, uint32_t height,
+	Format format, const wchar_t* name)
 {
-	N_RETURN(depth.Depth.Create(m_device, width, height, format, 1,
-		ResourceFlag::ALLOW_UNORDERED_ACCESS), false);
-#if USE_TRIPPLE_RASTER
-	N_RETURN(depth.HiZ.Create(m_device, DIV_UP(width, 64), DIV_UP(height, 64),
-		format, 1, ResourceFlag::ALLOW_UNORDERED_ACCESS), false);
-	N_RETURN(depth.TileZ.Create(m_device, DIV_UP(width, 8), DIV_UP(height, 8),
-		format, 1, ResourceFlag::ALLOW_UNORDERED_ACCESS), false);
-#else
-	N_RETURN(depth.HiZ.Create(m_device, DIV_UP(width, 8), DIV_UP(height, 8),
-		format, 1, ResourceFlag::ALLOW_UNORDERED_ACCESS), false);
-#endif
+	N_RETURN(depth.PixelZ.Create(m_device, width, height, format, 1,
+		ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, 1, MemoryType::DEFAULT,
+		ResourceState::COMMON, false, (wstring(name) + L".PixelZ").c_str()), false);
+	N_RETURN(depth.TileZ.Create(m_device, DIV_UP(width, TILE_SIZE), DIV_UP(height, TILE_SIZE),
+		format, 1, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, 1, MemoryType::DEFAULT,
+		ResourceState::COMMON, false, (wstring(name) + L".TileZ").c_str()), false);
+	N_RETURN(depth.BinZ.Create(m_device, DIV_UP(width, BIN_SIZE), DIV_UP(height, BIN_SIZE),
+		format, 1, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, 1, MemoryType::DEFAULT,
+		ResourceState::COMMON, false, (wstring(name) + L".BinZ").c_str()), false);
 
 	return true;
 }
@@ -286,14 +275,13 @@ bool SoftGraphicsPipeline::createPipelines()
 		Util::PipelineLayout utilPipelineLayout;
 		utilPipelineLayout.SetConstants(0, SizeOfInUint32(CBViewPort), 0);
 		utilPipelineLayout.SetRange(1, DescriptorType::SRV, 1, 0, 0,
-			DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
-		utilPipelineLayout.SetRange(2, DescriptorType::UAV, 3, 0, 0,
+			DescriptorRangeFlag::DESCRIPTORS_VOLATILE);
+		utilPipelineLayout.SetRange(2, DescriptorType::UAV, 6, 0, 0,
 			DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		X_RETURN(m_pipelineLayouts[BIN_RASTER], utilPipelineLayout.GetPipelineLayout(
 			m_pipelineLayoutCache, PipelineLayoutFlag::NONE, L"BinRasterLayout"), false);
 	}
 
-#if USE_TRIPPLE_RASTER
 	{
 		Util::PipelineLayout utilPipelineLayout;
 		utilPipelineLayout.SetConstants(0, SizeOfInUint32(CBViewPort), 0);
@@ -304,7 +292,6 @@ bool SoftGraphicsPipeline::createPipelines()
 		X_RETURN(m_pipelineLayouts[TILE_RASTER], utilPipelineLayout.GetPipelineLayout(
 			m_pipelineLayoutCache, PipelineLayoutFlag::NONE, L"TileRasterLayout"), false);
 	}
-#endif
 
 	// Create compute pipelines
 	{
@@ -334,7 +321,6 @@ bool SoftGraphicsPipeline::createPipelines()
 		X_RETURN(m_pipelines[BIN_RASTER], state.GetPipeline(m_computePipelineCache, L"BinRaster"), false);
 	}
 
-#if USE_TRIPPLE_RASTER
 	{
 		N_RETURN(m_shaderPool.CreateShader(Shader::Stage::CS, TILE_RASTER, L"TileRaster.cso"), false);
 
@@ -343,7 +329,6 @@ bool SoftGraphicsPipeline::createPipelines()
 		state.SetShader(m_shaderPool.GetShader(Shader::Stage::CS, TILE_RASTER));
 		X_RETURN(m_pipelines[TILE_RASTER], state.GetPipeline(m_computePipelineCache, L"TileRaster"), false);
 	}
-#endif
 
 	{
 		N_RETURN(m_shaderPool.CreateShader(Shader::Stage::CS, PIX_RASTER, L"PixelRaster.cso"), false);
@@ -365,14 +350,12 @@ bool SoftGraphicsPipeline::createResetBuffer(const CommandList& commandList, vec
 
 	const uint32_t pDataReset[] = { 0, 1, 1 };
 	uploaders.push_back(nullptr);
-	N_RETURN(m_binPrimCount.Upload(commandList, uploaders.back(),
-		pDataReset, sizeof(uint32_t[3]), ResourceState::COPY_SOURCE), false);
-
-#if USE_TRIPPLE_RASTER
-	uploaders.push_back(nullptr);
 	N_RETURN(m_tilePrimCount.Upload(commandList, uploaders.back(),
 		pDataReset, sizeof(uint32_t[3]), ResourceState::COPY_SOURCE), false);
-#endif
+
+	uploaders.push_back(nullptr);
+	N_RETURN(m_binPrimCount.Upload(commandList, uploaders.back(),
+		pDataReset, sizeof(uint32_t[3]), ResourceState::COPY_SOURCE), false);
 
 	uploaders.push_back(nullptr);
 
@@ -390,7 +373,17 @@ bool SoftGraphicsPipeline::createCommandLayout()
 
 bool SoftGraphicsPipeline::createDescriptorTables()
 {
-	const auto numAttribs = static_cast<uint32_t>(m_vertexAttribs.size());
+	{
+		Util::DescriptorTable utilSrvTable;
+		const Descriptor srvs[] =
+		{
+			m_vertexPos.GetSRV(),
+			m_tilePrimitives.GetSRV(),
+			m_binPrimitives.GetSRV()
+		};
+		utilSrvTable.SetDescriptors(0, static_cast<uint32_t>(size(srvs)), srvs);
+		X_RETURN(m_srvTables[SRV_TABLE_RS], utilSrvTable.GetCbvSrvUavTable(m_descriptorTableCache), false);
+	}
 
 	{
 		Util::DescriptorTable utilSrvTable;
@@ -400,19 +393,16 @@ bool SoftGraphicsPipeline::createDescriptorTables()
 			m_binPrimitives.GetSRV()
 		};
 		utilSrvTable.SetDescriptors(0, static_cast<uint32_t>(size(srvs)), srvs);
-		X_RETURN(m_srvTables[SRV_TABLE_RS], utilSrvTable.GetCbvSrvUavTable(m_descriptorTableCache), false);
+		X_RETURN(m_srvTables[SRV_TABLE_TR], utilSrvTable.GetCbvSrvUavTable(m_descriptorTableCache), false);
 	}
 
+	const auto numAttribs = static_cast<uint32_t>(m_vertexAttribs.size());
 	{
 		Util::DescriptorTable utilSrvTable;
 		vector<Descriptor> srvs;
 		srvs.reserve(numAttribs + 2);
 		srvs.push_back(m_vertexPos.GetSRV());
-#if USE_TRIPPLE_RASTER
 		srvs.push_back(m_tilePrimitives.GetSRV());
-#else
-		srvs.push_back(m_binPrimitives.GetSRV());
-#endif
 		for (const auto& attrib : m_vertexAttribs) srvs.push_back(attrib.GetSRV());
 		utilSrvTable.SetDescriptors(0, static_cast<uint32_t>(srvs.size()), srvs.data());
 		X_RETURN(m_srvTables[SRV_TABLE_PS], utilSrvTable.GetCbvSrvUavTable(m_descriptorTableCache), false);
@@ -431,26 +421,16 @@ bool SoftGraphicsPipeline::createDescriptorTables()
 	{
 		Util::DescriptorTable utilUavTable;
 		vector<Descriptor> uavs;
-		uavs.reserve(m_pDepth ? 2 : 3);
-		uavs.push_back(m_binPrimCount.GetUAV());
-		uavs.push_back(m_binPrimitives.GetUAV());
-		if (m_pDepth) uavs.push_back(m_pDepth->HiZ.GetUAV());
-		utilUavTable.SetDescriptors(0, static_cast<uint32_t>(uavs.size()), uavs.data());
-		X_RETURN(m_uavTables[UAV_TABLE_BIN], utilUavTable.GetCbvSrvUavTable(m_descriptorTableCache), false);
-	}
-
-#if USE_TRIPPLE_RASTER
-	{
-		Util::DescriptorTable utilUavTable;
-		vector<Descriptor> uavs;
-		uavs.reserve(m_pDepth ? 2 : 3);
+		uavs.reserve(6);
 		uavs.push_back(m_tilePrimCount.GetUAV());
 		uavs.push_back(m_tilePrimitives.GetUAV());
 		if (m_pDepth) uavs.push_back(m_pDepth->TileZ.GetUAV());
+		uavs.push_back(m_binPrimCount.GetUAV());
+		uavs.push_back(m_binPrimitives.GetUAV());
+		if (m_pDepth) uavs.push_back(m_pDepth->TileZ.GetUAV());
 		utilUavTable.SetDescriptors(0, static_cast<uint32_t>(uavs.size()), uavs.data());
-		X_RETURN(m_uavTables[UAV_TABLE_TILE], utilUavTable.GetCbvSrvUavTable(m_descriptorTableCache), false);
+		X_RETURN(m_uavTables[UAV_TABLE_RS], utilUavTable.GetCbvSrvUavTable(m_descriptorTableCache), false);
 	}
-#endif
 
 	return true;
 }
@@ -481,15 +461,15 @@ void SoftGraphicsPipeline::draw(CommandList& commandList, uint32_t num, StageInd
 	commandList.SetDescriptorPools(static_cast<uint32_t>(size(descriptorPools)), descriptorPools);
 
 	// Set resource barriers
+	// Due to auto promotions, no need to call commandList.Barrier()
 	vector<ResourceBarrier> barriers(m_vertexAttribs.size() + 3);
-	auto numBarriers = m_binPrimCount.SetBarrier(barriers.data(), ResourceState::COPY_DEST);
+	auto numBarriers = m_tilePrimCount.SetBarrier(barriers.data(), ResourceState::COPY_DEST);
 #if USE_TRIPPLE_RASTER
-	numBarriers = m_tilePrimCount.SetBarrier(barriers.data(), ResourceState::COPY_DEST, numBarriers);
+	numBarriers = m_binPrimCount.SetBarrier(barriers.data(), ResourceState::COPY_DEST, numBarriers);
 #endif
 	numBarriers = m_vertexPos.SetBarrier(barriers.data(), ResourceState::UNORDERED_ACCESS, numBarriers);
 	for (auto& attrib : m_vertexAttribs)
 		numBarriers = attrib.SetBarrier(barriers.data(), ResourceState::UNORDERED_ACCESS, numBarriers);
-	commandList.Barrier(numBarriers, barriers.data());
 
 	// Vertex shader
 	{
@@ -515,41 +495,47 @@ void SoftGraphicsPipeline::draw(CommandList& commandList, uint32_t num, StageInd
 void SoftGraphicsPipeline::rasterizer(CommandList& commandList, uint32_t numTriangles)
 {
 	CBViewPort cbViewport;
-	cbViewport.x = m_viewport.TopLeftX;
-	cbViewport.y = m_viewport.TopLeftY;
-	cbViewport.w = m_viewport.Width;
-	cbViewport.h = m_viewport.Height;
-#if USE_TRIPPLE_RASTER
-	cbViewport.numTileX = static_cast<uint32_t>(ceil(cbViewport.w / 64.0f));
-	cbViewport.numTileY = static_cast<uint32_t>(ceil(cbViewport.h / 64.0f));
-#else
-	cbViewport.numTileX = static_cast<uint32_t>(ceil(cbViewport.w / 8.0f));
-	cbViewport.numTileY = static_cast<uint32_t>(ceil(cbViewport.h / 8.0f));
-#endif
+	cbViewport.TopLeftX = m_viewport.TopLeftX;
+	cbViewport.TopLeftY = m_viewport.TopLeftY;
+	cbViewport.Width = m_viewport.Width;
+	cbViewport.Height = m_viewport.Height;
+	cbViewport.NumTileX = static_cast<uint32_t>(ceil(cbViewport.Width / TILE_SIZE));
+	cbViewport.NumTileY = static_cast<uint32_t>(ceil(cbViewport.Height / TILE_SIZE));
+	cbViewport.NumBinX = static_cast<uint32_t>(ceil(cbViewport.Width / BIN_SIZE));
+	cbViewport.NumBinY = static_cast<uint32_t>(ceil(cbViewport.Height / BIN_SIZE));
 
-	// Reset BinPrimitiveCount
-	commandList.CopyBufferRegion(m_binPrimCount.GetResource(), 0,
-		m_tilePrimCountReset.GetResource(), 0, sizeof(uint32_t));
-#if USE_TRIPPLE_RASTER
 	// Reset TilePrimitiveCount
 	commandList.CopyBufferRegion(m_tilePrimCount.GetResource(), 0,
+		m_tilePrimCountReset.GetResource(), 0, sizeof(uint32_t));
+#if USE_TRIPPLE_RASTER
+	// Reset BinPrimitiveCount
+	commandList.CopyBufferRegion(m_binPrimCount.GetResource(), 0,
 		m_tilePrimCountReset.GetResource(), 0, sizeof(uint32_t));
 #endif
 
 	// Set resource barriers
-	vector<ResourceBarrier> barriers(m_vertexAttribs.size() + 5);
+	vector<ResourceBarrier> barriers(m_vertexAttribs.size() + 3);
 	auto numBarriers = m_vertexPos.SetBarrier(barriers.data(), ResourceState::NON_PIXEL_SHADER_RESOURCE);
-	numBarriers = m_binPrimCount.SetBarrier(barriers.data(), ResourceState::UNORDERED_ACCESS, numBarriers);
-	numBarriers = m_binPrimitives.SetBarrier(barriers.data(), ResourceState::UNORDERED_ACCESS, numBarriers);
-#if USE_TRIPPLE_RASTER
 	numBarriers = m_tilePrimCount.SetBarrier(barriers.data(), ResourceState::UNORDERED_ACCESS, numBarriers);
-	numBarriers = m_tilePrimitives.SetBarrier(barriers.data(), ResourceState::UNORDERED_ACCESS, numBarriers);
+#if USE_TRIPPLE_RASTER
+	numBarriers = m_binPrimCount.SetBarrier(barriers.data(), ResourceState::UNORDERED_ACCESS, numBarriers);
 #endif
 	commandList.Barrier(numBarriers, barriers.data());
 
+	// Due to auto promotions, no need to call commandList.Barrier()
+	numBarriers = m_tilePrimitives.SetBarrier(barriers.data(), ResourceState::UNORDERED_ACCESS);
+#if USE_TRIPPLE_RASTER
+	numBarriers = m_binPrimitives.SetBarrier(barriers.data(), ResourceState::UNORDERED_ACCESS, numBarriers);
+#endif
+
 	if (m_pDepth && m_clearDepth != 0xffffffff)
 		commandList.ClearUnorderedAccessViewUint(m_outTables[m_outTables.size() - 2],
-			m_pDepth->HiZ.GetUAV(), m_pDepth->HiZ.GetResource(), &m_clearDepth);
+			m_pDepth->TileZ.GetUAV(), m_pDepth->TileZ.GetResource(), &m_clearDepth);
+#if USE_TRIPPLE_RASTER
+	if (m_pDepth && m_clearDepth != 0xffffffff)
+		commandList.ClearUnorderedAccessViewUint(m_outTables[m_outTables.size() - 3],
+			m_pDepth->BinZ.GetUAV(), m_pDepth->BinZ.GetResource(), &m_clearDepth);
+#endif
 
 	// Bin raster
 	{
@@ -557,7 +543,7 @@ void SoftGraphicsPipeline::rasterizer(CommandList& commandList, uint32_t numTria
 		commandList.SetComputePipelineLayout(m_pipelineLayouts[BIN_RASTER]);
 		commandList.SetCompute32BitConstants(0, SizeOfInUint32(cbViewport), &cbViewport);
 		commandList.SetComputeDescriptorTable(1, m_srvTables[SRV_TABLE_RS]);
-		commandList.SetComputeDescriptorTable(2, m_uavTables[UAV_TABLE_BIN]);
+		commandList.SetComputeDescriptorTable(2, m_uavTables[UAV_TABLE_RS]);
 
 		// Set pipeline state
 		commandList.SetPipelineState(m_pipelines[BIN_RASTER]);
@@ -566,27 +552,19 @@ void SoftGraphicsPipeline::rasterizer(CommandList& commandList, uint32_t numTria
 		commandList.Dispatch(DIV_UP(numTriangles, 64), 1, 1);
 	}
 
+#if USE_TRIPPLE_RASTER
 	// Set resource barriers
 	numBarriers = m_binPrimCount.SetBarrier(barriers.data(), ResourceState::INDIRECT_ARGUMENT);
 	numBarriers = m_binPrimitives.SetBarrier(barriers.data(), ResourceState::NON_PIXEL_SHADER_RESOURCE, numBarriers);
-#if USE_TRIPPLE_RASTER
 	commandList.Barrier(numBarriers, barriers.data());
-
-	if (m_pDepth && m_clearDepth != 0xffffffff)
-		commandList.ClearUnorderedAccessViewUint(m_outTables[m_outTables.size() - 3],
-			m_pDepth->TileZ.GetUAV(), m_pDepth->TileZ.GetResource(), &m_clearDepth);
 
 	// Tile raster
 	{
-		// Here, numTileY is temporarily used as numOutTileX for output;
-		// numTileX is used for numBinX
-		cbViewport.numTileY = static_cast<uint32_t>(ceil(cbViewport.w / 8.0f));
-
 		// Set descriptor tables
 		commandList.SetComputePipelineLayout(m_pipelineLayouts[TILE_RASTER]);
 		commandList.SetCompute32BitConstants(0, SizeOfInUint32(cbViewport), &cbViewport);
-		commandList.SetComputeDescriptorTable(1, m_srvTables[SRV_TABLE_RS]);
-		commandList.SetComputeDescriptorTable(2, m_uavTables[UAV_TABLE_TILE]);
+		commandList.SetComputeDescriptorTable(1, m_srvTables[SRV_TABLE_TR]);
+		commandList.SetComputeDescriptorTable(2, m_uavTables[UAV_TABLE_RS]);
 
 		// Set pipeline state
 		commandList.SetPipelineState(m_pipelines[TILE_RASTER]);
@@ -595,14 +573,11 @@ void SoftGraphicsPipeline::rasterizer(CommandList& commandList, uint32_t numTria
 		commandList.ExecuteIndirect(m_commandLayout, 1, m_binPrimCount.GetResource(),
 			0, m_binPrimCount.GetResource());
 	}
-
-	cbViewport.numTileX = static_cast<uint32_t>(ceil(cbViewport.w / 8.0f));
-	cbViewport.numTileY = static_cast<uint32_t>(ceil(cbViewport.h / 8.0f));
+#endif
 
 	// Set resource barriers
 	numBarriers = m_tilePrimCount.SetBarrier(barriers.data(), ResourceState::INDIRECT_ARGUMENT);
 	numBarriers = m_tilePrimitives.SetBarrier(barriers.data(), ResourceState::NON_PIXEL_SHADER_RESOURCE, numBarriers);
-#endif
 	numBarriers = m_pColorTarget->SetBarrier(barriers.data(), ResourceState::UNORDERED_ACCESS, numBarriers);
 	for (auto& attrib : m_vertexAttribs)
 		numBarriers = attrib.SetBarrier(barriers.data(), ResourceState::NON_PIXEL_SHADER_RESOURCE, numBarriers);
@@ -623,7 +598,7 @@ void SoftGraphicsPipeline::rasterizer(CommandList& commandList, uint32_t numTria
 	if (m_pDepth && m_clearDepth != 0xffffffff)
 	{
 		commandList.ClearUnorderedAccessViewUint(m_outTables[m_outTables.size() - 1],
-			m_pDepth->Depth.GetUAV(), m_pDepth->Depth.GetResource(), &m_clearDepth);
+			m_pDepth->PixelZ.GetUAV(), m_pDepth->PixelZ.GetResource(), &m_clearDepth);
 		m_clearDepth = 0xffffffff;
 	}
 
@@ -642,12 +617,7 @@ void SoftGraphicsPipeline::rasterizer(CommandList& commandList, uint32_t numTria
 		commandList.SetPipelineState(m_pipelines[PIX_RASTER]);
 
 		// Dispatch indirect
-#if USE_TRIPPLE_RASTER
 		commandList.ExecuteIndirect(m_commandLayout, 1, m_tilePrimCount.GetResource(),
 			0, m_tilePrimCount.GetResource());
-#else
-		commandList.ExecuteIndirect(m_commandLayout, 1, m_binPrimCount.GetResource(),
-			0, m_binPrimCount.GetResource());
-#endif
 	}
 }
