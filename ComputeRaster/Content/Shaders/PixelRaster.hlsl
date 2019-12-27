@@ -87,6 +87,19 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 	
 #include "SetAttributes.hlsli"
 
-	//g_rwRenderTarget[pixelPos] = float4(w, 1.0);
-	g_rwRenderTarget[pixelPos] = PSMain(input);	// Call pixel shader
+	for (i = 0; i < 0xffffffff; ++i)
+	{
+		InterlockedExchange(g_rwDepth[pixelPos], 0xffffffff, depthMin);
+		if (depthMin != 0xffffffff)
+		{
+			// Critical section
+			if (depth <= depthMin)
+			{
+				//g_rwRenderTarget[pixelPos] = float4(w, 1.0);
+				g_rwRenderTarget[pixelPos] = PSMain(input);	// Call pixel shader
+			}
+			g_rwDepth[pixelPos] = min(depth, depthMin);
+			break;
+		}
+	}
 }

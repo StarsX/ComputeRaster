@@ -6,16 +6,32 @@
 #include "Common.hlsli"
 
 //--------------------------------------------------------------------------------------
-// Structure
+// Structures
 //--------------------------------------------------------------------------------------
-struct RasterInfo
+struct TileInfo
+{
+	uint SizeLog;
+	uint Size;
+	uint2 Dim;
+};
+
+struct RasterUavInfo
 {
 	RWStructuredBuffer<uint> rwPrimCount;
 	RWStructuredBuffer<TilePrim> rwPrimitives;
 	RWTexture2D<uint> rwHiZ;
-	uint TileSizeLog;
-	uint TileSize;
-	uint2 TileDim;
+};
+
+struct RasterInfo
+{
+	float3 w;
+	float3x2 n;
+	float2 MinPt;
+	uint2 MinTile;
+	uint2 MaxTile;
+	uint ZMin;
+	uint ZMax;
+	RasterUavInfo UavInfo;
 };
 
 //--------------------------------------------------------------------------------------
@@ -64,7 +80,7 @@ bool CullPrimitive(float3x4 primVPos)
 // possibly overlapped by the primitive.
 //--------------------------------------------------------------------------------------
 void ComputeAABB(float3x4 primVPos, out uint2 minTile,
-	out uint2 maxTile, RasterInfo tileInfo)
+	out uint2 maxTile, TileInfo tileInfo)
 {
 	const float2 minPt = min(primVPos[0].xy, min(primVPos[1].xy, primVPos[2].xy));
 	const float2 maxPt = max(primVPos[0].xy, max(primVPos[1].xy, primVPos[2].xy));
@@ -72,12 +88,12 @@ void ComputeAABB(float3x4 primVPos, out uint2 minTile,
 	minTile = floor(minPt);
 	maxTile = floor(maxPt - 0.5);
 
-	// Shrink by (TILE_SIZE x TILE_SIZE)
-	minTile >>= tileInfo.TileSizeLog;
-	maxTile >>= tileInfo.TileSizeLog;
+	// Shrink by (tileInfo.Size x tileInfo.Size)
+	minTile >>= tileInfo.SizeLog;
+	maxTile >>= tileInfo.SizeLog;
 
 	minTile = max(minTile, 0);
-	maxTile = min(maxTile + 1, tileInfo.TileDim - 1);
+	maxTile = min(maxTile + 1, tileInfo.Dim - 1);
 }
 
 //--------------------------------------------------------------------------------------
@@ -85,12 +101,12 @@ void ComputeAABB(float3x4 primVPos, out uint2 minTile,
 // clipping parameters in clip space at the end of BfTiledCurves.
 //--------------------------------------------------------------------------------------
 void AppendPrimitive(uint primId, uint tileY, inout uint3 scanLine,
-	RasterInfo tileInfo)
+	uint tileDimX, RasterUavInfo uavInfo)
 {
 	const uint scanLineLen = scanLine.y - scanLine.x;
 
 	TilePrim tilePrim;
-	tilePrim.TileIdx = tileInfo.TileDim.x * tileY + scanLine.x;
+	tilePrim.TileIdx = tileDimX * tileY + scanLine.x;
 	tilePrim.PrimId = primId;
 
 	uint baseIdx;
@@ -102,17 +118,17 @@ void AppendPrimitive(uint primId, uint tileY, inout uint3 scanLine,
 	{
 		// this way, we only issue one atomic for the entire wave, which reduces contention
 		// and keeps the output data for each lane in this wave together in the output buffer
-		InterlockedAdd(tileInfo.rwPrimCount[0], appendCount, baseIdx);
+		InterlockedAdd(uavInfo.rwPrimCount[0], appendCount, baseIdx);
 	}
 	baseIdx = WaveReadLaneFirst(baseIdx);	// broadcast value
 	baseIdx += WavePrefixSum(scanLineLen);	// and add in the offset for this lane
 	// write to the offset location for this lane
 #else
-	InterlockedAdd(tileInfo.rwPrimCount[0], scanLineLen, baseIdx);
+	InterlockedAdd(uavInfo.rwPrimCount[0], scanLineLen, baseIdx);
 #endif
 	for (uint i = 0; i < scanLineLen; ++i)
 	{
-		tileInfo.rwPrimitives[baseIdx + i] = tilePrim;
+		uavInfo.rwPrimitives[baseIdx + i] = tilePrim;
 		++tilePrim.TileIdx;
 	}
 
@@ -123,38 +139,19 @@ void AppendPrimitive(uint primId, uint tileY, inout uint3 scanLine,
 //--------------------------------------------------------------------------------------
 // Bin the primitive.
 //--------------------------------------------------------------------------------------
-void BinPrimitive(float3x4 primVPos, uint primId, RasterInfo tileInfo)
+void BinPrimitive(uint primId, uint tileDimX, RasterInfo rasterInfo)
 {
-	// Create the AABB.
-	uint2 minTile, maxTile;
-	ComputeAABB(primVPos, minTile, maxTile, tileInfo);
-
-	const uint zMin = asuint(min(primVPos[0].z, min(primVPos[1].z, primVPos[2].z)));
-	const uint zMax = asuint(max(primVPos[0].z, max(primVPos[1].z, primVPos[2].z)));
-
-	// Scale the primitive for conservative rasterization.
-	float3x2 v;
-	[unroll]
-	for (uint i = 0; i < 3; ++i) v[i] = primVPos[i].xy / tileInfo.TileSize;
-	v = Scale(v, 0.5);
-
-	// Triangle edge equation setup.
-	const float3x2 n =
-	{
-		v[1].y - v[2].y, v[2].x - v[1].x,
-		v[2].y - v[0].y, v[0].x - v[2].x,
-		v[0].y - v[1].y, v[1].x - v[0].x,
-	};
-	
-	// Calculate barycentric coordinates at min corner.
-	float3 w;
-	const float2 minPt = min(v[0], min(v[1], v[2]));
-	w.x = determinant(v[1], v[2], minPt);
-	w.y = determinant(v[2], v[0], minPt);
-	w.z = determinant(v[0], v[1], minPt);
+	const float3 w = rasterInfo.w;
+	const float3x2 n = rasterInfo.n;
+	const float2 minPt = rasterInfo.MinPt;
+	const uint2 minTile = rasterInfo.MinTile;
+	const uint2 maxTile = rasterInfo.MaxTile;
+	const uint zMin = rasterInfo.ZMin;
+	const uint zMax = rasterInfo.ZMax;
+	const RasterUavInfo uavInfo = rasterInfo.UavInfo;
 
 	uint2 tile;
-	for (i = minTile.y; i <= maxTile.y; ++i)
+	for (uint i = minTile.y; i <= maxTile.y; ++i)
 	{
 		uint3 scanLine = uint3(0xffffffff, 0u.xx);
 		tile.y = i;
@@ -186,11 +183,11 @@ void BinPrimitive(float3x4 primVPos, uint primId, RasterInfo tileInfo)
 			{
 				tile.x = j;
 				if (j > scanLine.x + 1 && j + 2 < scanLine.y && isInsideY)
-					InterlockedMin(tileInfo.rwHiZ[tile], zMax, hiZ);
+					InterlockedMin(uavInfo.rwHiZ[tile], zMax, hiZ);
 				else
 				{
 					DeviceMemoryBarrier();
-					hiZ = tileInfo.rwHiZ[tile];
+					hiZ = uavInfo.rwHiZ[tile];
 				}
 
 				if (hiZ < zMin)
@@ -201,8 +198,90 @@ void BinPrimitive(float3x4 primVPos, uint primId, RasterInfo tileInfo)
 				}
 			}
 #endif
-			AppendPrimitive(primId, i, scanLine, tileInfo);
+			AppendPrimitive(primId, i, scanLine, tileDimX, uavInfo);
 		}
+	}
+}
+
+//--------------------------------------------------------------------------------------
+// Get tile info.
+//--------------------------------------------------------------------------------------
+bool GetTileInfo(float3x4 primVPos, out TileInfo tileInfo)
+{
+	const float area = determinant(primVPos[0].xy, primVPos[1].xy, primVPos[2].xy);
+	if (USE_TRIPPLE_RASTER && area > (TILE_SIZE * TILE_SIZE)* (4.0 * 4.0))
+	{
+		// If the area > 4x4 tile sizes, the bin rasterization will be triggered.
+		tileInfo.SizeLog = BIN_SIZE_LOG;
+		tileInfo.Size = BIN_SIZE;
+		tileInfo.Dim = g_binDim;
+
+		return true;
+	}
+	else
+	{
+		// Otherwise, the tile rasterization is directly done.
+		tileInfo.SizeLog = TILE_SIZE_LOG;
+		tileInfo.Size = TILE_SIZE;
+		tileInfo.Dim = g_tileDim;
+
+		return false;
+	}
+}
+
+//--------------------------------------------------------------------------------------
+// Determine all potentially overlapping tiles.
+//--------------------------------------------------------------------------------------
+void ProcessPrimitive(float3x4 primVPos, uint primId)
+{
+	// Get tile info
+	TileInfo tileInfo;
+	const bool useBin = GetTileInfo(primVPos, tileInfo);
+
+	RasterInfo rasterInfo;
+
+	// Create the AABB.
+	ComputeAABB(primVPos, rasterInfo.MinTile, rasterInfo.MaxTile, tileInfo);
+
+	rasterInfo.ZMin = asuint(min(primVPos[0].z, min(primVPos[1].z, primVPos[2].z)));
+	rasterInfo.ZMax = asuint(max(primVPos[0].z, max(primVPos[1].z, primVPos[2].z)));
+
+	// Scale the primitive for conservative rasterization.
+	float3x2 v;
+	[unroll]
+	for (uint i = 0; i < 3; ++i) v[i] = primVPos[i].xy / tileInfo.Size;
+	v = Scale(v, 0.5);
+
+	// Triangle edge equation setup.
+	rasterInfo.n = float3x2
+	(
+		v[1].y - v[2].y, v[2].x - v[1].x,
+		v[2].y - v[0].y, v[0].x - v[2].x,
+		v[0].y - v[1].y, v[1].x - v[0].x
+	);
+
+	// Calculate barycentric coordinates at min corner.
+	const float2 minPt = min(v[0], min(v[1], v[2]));
+	rasterInfo.w.x = determinant(v[1], v[2], minPt);
+	rasterInfo.w.y = determinant(v[2], v[0], minPt);
+	rasterInfo.w.z = determinant(v[0], v[1], minPt);
+	rasterInfo.MinPt = minPt;
+
+	if (useBin)
+	{
+		// Need bin rasterization.
+		rasterInfo.UavInfo.rwPrimCount = g_rwBinPrimCount;
+		rasterInfo.UavInfo.rwPrimitives = g_rwBinPrimitives;
+		rasterInfo.UavInfo.rwHiZ = g_rwBinZ;
+		BinPrimitive(primId, tileInfo.Dim.x, rasterInfo);
+	}
+	else
+	{
+		// Otherwise, the tile rasterization is directly done.
+		rasterInfo.UavInfo.rwPrimCount = g_rwTilePrimCount;
+		rasterInfo.UavInfo.rwPrimitives = g_rwTilePrimitives;
+		rasterInfo.UavInfo.rwHiZ = g_rwTileZ;
+		BinPrimitive(primId, tileInfo.Dim.x, rasterInfo);
 	}
 }
 
@@ -260,6 +339,10 @@ float2 ComputeKB(float2 v0, float2 v1)
 //--------------------------------------------------------------------------------------
 void BinPrimitive2(float3x4 primVPos, uint primId)
 {
+	// Get tile info
+	TileInfo tileInfo;
+	const bool useBin = GetTileInfo(primVPos, tileInfo);
+
 	// To tiled space.
 	float2 v[3], rangeY;
 	ToTiledSpace(primVPos, v, rangeY);
@@ -274,6 +357,16 @@ void BinPrimitive2(float3x4 primVPos, uint primId)
 	float2 scan;
 	//scan.x = e01.x * rangeY.x + e01.y;
 	//scan.y = e02.x * rangeY.y + e02.y;
+
+	RasterUavInfo uavInfo;
+	//if (useBin)
+	// else
+	{
+		// Otherwise, the tile rasterization is directly done.
+		uavInfo.rwPrimCount = g_rwTilePrimCount;
+		uavInfo.rwPrimitives = g_rwTilePrimitives;
+		uavInfo.rwHiZ = g_rwTileZ;
+	}
 
 	bool2 phase2 = false;
 	for (float y = rangeY.x; y <= rangeY.y; ++y)
@@ -302,7 +395,8 @@ void BinPrimitive2(float3x4 primVPos, uint primId)
 		scanLine.y = min(scanLine.y, g_tileDim.x);
 
 		scanLine.z = scanLine.y;
-		AppendPrimitive(primId, y, scanLine);
+
+		AppendPrimitive(primId, y, scanLine, g_tileDim.x, uavInfo);
 
 		//scan.x += phase2.x ? e12.x : e01.x;
 		//scan.y += phase2.y ? e21.x : e02.x;
@@ -327,28 +421,5 @@ void main(uint DTid : SV_DispatchThreadID)
 	ToScreenSpace(primVPos);
 
 	// Store each successful clipping result.
-	RasterInfo tileInfo;
-	const float area = determinant(primVPos[0].xy, primVPos[1].xy, primVPos[2].xy);
-	if (USE_TRIPPLE_RASTER && area > (TILE_SIZE * TILE_SIZE) * (4.0 * 4.0))
-	{
-		// If the area > 4x4 tile sizes, the bin rasterization will be triggered.
-		tileInfo.rwPrimCount = g_rwBinPrimCount;
-		tileInfo.rwPrimitives = g_rwBinPrimitives;
-		tileInfo.rwHiZ = g_rwBinZ;
-		tileInfo.TileSizeLog = BIN_SIZE_LOG;
-		tileInfo.TileSize = BIN_SIZE;
-		tileInfo.TileDim = g_binDim;
-		BinPrimitive(primVPos, DTid, tileInfo);
-	}
-	else
-	{
-		// Otherwise, the tile rasterization is directly done.
-		tileInfo.rwPrimCount = g_rwTilePrimCount;
-		tileInfo.rwPrimitives = g_rwTilePrimitives;
-		tileInfo.rwHiZ = g_rwTileZ;
-		tileInfo.TileSizeLog = TILE_SIZE_LOG;
-		tileInfo.TileSize = TILE_SIZE;
-		tileInfo.TileDim = g_tileDim;
-		BinPrimitive(primVPos, DTid, tileInfo);
-	}
+	ProcessPrimitive(primVPos, DTid);
 }
