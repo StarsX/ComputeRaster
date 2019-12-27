@@ -71,6 +71,21 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 	tilePrim.TileIdx = g_tileDim.x * tile.y + tile.x;
 
 	uint idx;
+#if SHADER_MODEL >= 6
+	// compute number of items to append for the whole wave
+	const uint appendCount = WaveActiveCountBits(true);
+	// update the output location for this whole wave
+	if (WaveIsFirstLane())
+	{
+		// this way, we only issue one atomic for the entire wave, which reduces contention
+		// and keeps the output data for each lane in this wave together in the output buffer
+		InterlockedAdd(g_rwTilePrimCount[0], appendCount, idx);
+	}
+	idx = WaveReadLaneFirst(idx);		// broadcast value
+	idx += WavePrefixCountBits(true);	// and add in the offset for this lane
+	// write to the offset location for this lane
+#else
 	InterlockedAdd(g_rwTilePrimCount[0], 1, idx);
+#endif
 	g_rwTilePrimitives[idx] = tilePrim;
 }

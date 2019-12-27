@@ -94,7 +94,22 @@ void AppendPrimitive(uint primId, uint tileY, inout uint3 scanLine,
 	tilePrim.PrimId = primId;
 
 	uint baseIdx;
+#if SHADER_MODEL >= 6
+	// compute number of items to append for the whole wave
+	const uint appendCount = WaveActiveSum(scanLineLen);
+	// update the output location for this whole wave
+	if (WaveIsFirstLane())
+	{
+		// this way, we only issue one atomic for the entire wave, which reduces contention
+		// and keeps the output data for each lane in this wave together in the output buffer
+		InterlockedAdd(tileInfo.rwPrimCount[0], appendCount, baseIdx);
+	}
+	baseIdx = WaveReadLaneFirst(baseIdx);	// broadcast value
+	baseIdx += WavePrefixSum(scanLineLen);	// and add in the offset for this lane
+	// write to the offset location for this lane
+#else
 	InterlockedAdd(tileInfo.rwPrimCount[0], scanLineLen, baseIdx);
+#endif
 	for (uint i = 0; i < scanLineLen; ++i)
 	{
 		tileInfo.rwPrimitives[baseIdx + i] = tilePrim;
