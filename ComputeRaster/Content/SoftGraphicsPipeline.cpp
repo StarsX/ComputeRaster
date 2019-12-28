@@ -442,9 +442,9 @@ void SoftGraphicsPipeline::draw(CommandList& commandList, uint32_t num, StageInd
 	static auto firstTime = true;
 	if (firstTime)
 	{
-		m_vertexPos.Create(m_device, m_maxVertexCount, sizeof(float[4]), Format::R32G32B32A32_FLOAT,
-			ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, ResourceState::COMMON, 1,
-			nullptr, 1, nullptr, L"VertexPositions");
+		m_vertexPos.Create(m_device, m_maxVertexCount, sizeof(float[4]),
+			ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT,
+			ResourceState::COMMON, 1, nullptr, 1, nullptr, L"VertexPositions");
 		const auto attribCount = static_cast<uint32_t>(m_vertexAttribs.size());
 		for (auto i = 0u; i < attribCount; ++i)
 			m_vertexAttribs[i].Create(m_device, m_maxVertexCount, m_attribInfo[i].Stride, m_attribInfo[i].Format,

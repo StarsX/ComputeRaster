@@ -151,7 +151,7 @@ protected:
 
 	std::vector<AttributeInfo> m_attribInfo;
 	std::vector<XUSG::TypedBuffer> m_vertexAttribs;
-	XUSG::TypedBuffer		m_vertexPos;
+	XUSG::StructuredBuffer	m_vertexPos;
 	XUSG::StructuredBuffer	m_tilePrimCountReset;
 	XUSG::StructuredBuffer	m_binPrimCount;
 	XUSG::StructuredBuffer	m_binPrimitives;
