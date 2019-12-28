@@ -31,14 +31,18 @@ bool SoftGraphicsPipeline::Init(const CommandList& commandList, vector<Resource>
 	const uint32_t binBufferSize = tileBufferSize >> 6;
 
 	// Create buffers
-	N_RETURN(m_tilePrimCount.Create(m_device, 3, sizeof(uint32_t), ResourceFlag::ALLOW_UNORDERED_ACCESS,
-		MemoryType::DEFAULT, ResourceState::COMMON, 1, nullptr, 1, nullptr, L"TilePrimitiveCount"), false);
-	N_RETURN(m_tilePrimitives.Create(m_device, tileBufferSize, sizeof(uint32_t[2]), ResourceFlag::ALLOW_UNORDERED_ACCESS,
-		MemoryType::DEFAULT, ResourceState::COMMON, 1, nullptr, 1, nullptr, L"TilePrimitives"), false);
-	N_RETURN(m_binPrimCount.Create(m_device, 3, sizeof(uint32_t), ResourceFlag::ALLOW_UNORDERED_ACCESS,
-		MemoryType::DEFAULT, ResourceState::COMMON, 1, nullptr, 1, nullptr, L"BinPrimitiveCount"), false);
-	N_RETURN(m_binPrimitives.Create(m_device, binBufferSize, sizeof(uint32_t[2]), ResourceFlag::ALLOW_UNORDERED_ACCESS,
-		MemoryType::DEFAULT, ResourceState::COMMON, 1, nullptr, 1, nullptr, L"BinPrimitives"), false);
+	N_RETURN(m_tilePrimCount.Create(m_device, 3, sizeof(uint32_t),
+		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT,
+		1, nullptr, 1, nullptr, L"TilePrimitiveCount"), false);
+	N_RETURN(m_tilePrimitives.Create(m_device, tileBufferSize, sizeof(uint32_t[2]),
+		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, 1,
+		nullptr, 1, nullptr, L"TilePrimitives"), false);
+	N_RETURN(m_binPrimCount.Create(m_device, 3, sizeof(uint32_t),
+		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT,
+		1, nullptr, 1, nullptr, L"BinPrimitiveCount"), false);
+	N_RETURN(m_binPrimitives.Create(m_device, binBufferSize, sizeof(uint32_t[2]),
+		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, 1,
+		nullptr, 1, nullptr, L"BinPrimitives"), false);
 
 	// create reset buffer for resetting TilePrimitiveCount
 	N_RETURN(createResetBuffer(commandList, uploaders), false);
@@ -224,13 +228,13 @@ bool SoftGraphicsPipeline::CreateDepthBuffer(DepthBuffer& depth, uint32_t width,
 {
 	N_RETURN(depth.PixelZ.Create(m_device, width, height, format, 1,
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, 1, MemoryType::DEFAULT,
-		ResourceState::COMMON, false, (wstring(name) + L".PixelZ").c_str()), false);
+		false, (wstring(name) + L".PixelZ").c_str()), false);
 	N_RETURN(depth.TileZ.Create(m_device, DIV_UP(width, TILE_SIZE), DIV_UP(height, TILE_SIZE),
 		format, 1, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, 1, MemoryType::DEFAULT,
-		ResourceState::COMMON, false, (wstring(name) + L".TileZ").c_str()), false);
+		false, (wstring(name) + L".TileZ").c_str()), false);
 	N_RETURN(depth.BinZ.Create(m_device, DIV_UP(width, BIN_SIZE), DIV_UP(height, BIN_SIZE),
 		format, 1, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, 1, MemoryType::DEFAULT,
-		ResourceState::COMMON, false, (wstring(name) + L".BinZ").c_str()), false);
+		false, (wstring(name) + L".BinZ").c_str()), false);
 
 	return true;
 }
@@ -240,12 +244,12 @@ bool SoftGraphicsPipeline::CreateVertexBuffer(const CommandList& commandList,
 	uint32_t numVert, uint32_t srtide, const wchar_t* name) const
 {
 	N_RETURN(vb.Create(m_device, numVert, srtide, ResourceFlag::NONE,
-		MemoryType::DEFAULT, ResourceState::COPY_DEST, 1, nullptr,
-		1, nullptr, 1, nullptr, name), false);
+		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, 1, nullptr, name), false);
 	uploaders.push_back(nullptr);
 
-	return vb.Upload(commandList, uploaders.back(), pData, srtide * numVert,
-		ResourceState::NON_PIXEL_SHADER_RESOURCE);
+	return vb.Upload(commandList, uploaders.back(),
+		ResourceState::NON_PIXEL_SHADER_RESOURCE,
+		pData, srtide * numVert);
 }
 
 bool SoftGraphicsPipeline::CreateIndexBuffer(const CommandList& commandList,
@@ -257,12 +261,12 @@ bool SoftGraphicsPipeline::CreateIndexBuffer(const CommandList& commandList,
 	const uint32_t byteWidth = (format == Format::R16_UINT ? sizeof(uint16_t) : sizeof(uint32_t)) * numIdx;
 
 	N_RETURN(ib.Create(m_device, byteWidth, format, ResourceFlag::NONE,
-		MemoryType::DEFAULT, ResourceState::COPY_DEST, 1, nullptr,
-		1, nullptr, 1, nullptr, name), false);
+		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, 1, nullptr, name), false);
 	uploaders.push_back(nullptr);
 
-	return ib.Upload(commandList, uploaders.back(), pData, byteWidth,
-		ResourceState::NON_PIXEL_SHADER_RESOURCE);
+	return ib.Upload(commandList, uploaders.back(),
+		ResourceState::NON_PIXEL_SHADER_RESOURCE,
+		pData, byteWidth);
 }
 
 DescriptorTableCache& SoftGraphicsPipeline::GetDescriptorTableCache()
@@ -346,23 +350,22 @@ bool SoftGraphicsPipeline::createPipelines()
 
 bool SoftGraphicsPipeline::createResetBuffer(const CommandList& commandList, vector<Resource>& uploaders)
 {
-	N_RETURN(m_tilePrimCountReset.Create(m_device, 1, sizeof(uint32_t),
-		ResourceFlag::NONE, MemoryType::DEFAULT, ResourceState::COMMON,
-		1, nullptr, 1, nullptr, L"TilePrimitiveCountReset"), false);
+	N_RETURN(m_tilePrimCountReset.Create(m_device, 1, sizeof(uint32_t), ResourceFlag::NONE,
+		MemoryType::DEFAULT,1, nullptr, 1, nullptr, L"TilePrimitiveCountReset"), false);
 
 	const uint32_t pDataReset[] = { 0, 1, 1 };
 	uploaders.push_back(nullptr);
 	N_RETURN(m_tilePrimCount.Upload(commandList, uploaders.back(),
-		pDataReset, sizeof(uint32_t[3]), ResourceState::COPY_SOURCE), false);
+		ResourceState::COPY_SOURCE, pDataReset, sizeof(uint32_t[3])), false);
 
 	uploaders.push_back(nullptr);
 	N_RETURN(m_binPrimCount.Upload(commandList, uploaders.back(),
-		pDataReset, sizeof(uint32_t[3]), ResourceState::COPY_SOURCE), false);
+		ResourceState::COPY_SOURCE, pDataReset, sizeof(uint32_t[3])), false);
 
 	uploaders.push_back(nullptr);
 
 	return m_tilePrimCountReset.Upload(commandList, uploaders.back(),
-		pDataReset, sizeof(uint32_t), ResourceState::COPY_SOURCE);
+		ResourceState::COPY_SOURCE, pDataReset, sizeof(uint32_t));
 }
 
 bool SoftGraphicsPipeline::createCommandLayout()
@@ -426,10 +429,13 @@ bool SoftGraphicsPipeline::createDescriptorTables()
 		uavs.reserve(6);
 		uavs.push_back(m_tilePrimCount.GetUAV());
 		uavs.push_back(m_tilePrimitives.GetUAV());
-		if (m_pDepth) uavs.push_back(m_pDepth->TileZ.GetUAV());
+		if (m_pDepth)
+		{
+			uavs.push_back(m_pDepth->TileZ.GetUAV());
+			uavs.push_back(m_pDepth->BinZ.GetUAV());
+		}
 		uavs.push_back(m_binPrimCount.GetUAV());
 		uavs.push_back(m_binPrimitives.GetUAV());
-		if (m_pDepth) uavs.push_back(m_pDepth->TileZ.GetUAV());
 		utilUavTable.SetDescriptors(0, static_cast<uint32_t>(uavs.size()), uavs.data());
 		X_RETURN(m_uavTables[UAV_TABLE_RS], utilUavTable.GetCbvSrvUavTable(m_descriptorTableCache), false);
 	}
@@ -444,14 +450,25 @@ void SoftGraphicsPipeline::draw(CommandList& commandList, uint32_t num, StageInd
 	{
 		m_vertexPos.Create(m_device, m_maxVertexCount, sizeof(float[4]),
 			ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT,
-			ResourceState::COMMON, 1, nullptr, 1, nullptr, L"VertexPositions");
+			1, nullptr, 1, nullptr, L"VertexPositions");
+
 		const auto attribCount = static_cast<uint32_t>(m_vertexAttribs.size());
 		for (auto i = 0u; i < attribCount; ++i)
-			m_vertexAttribs[i].Create(m_device, m_maxVertexCount, m_attribInfo[i].Stride, m_attribInfo[i].Format,
-				ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, ResourceState::COMMON, 1,
-				nullptr, 1, nullptr, m_attribInfo[i].Name.c_str());
+			m_vertexAttribs[i].Create(m_device, m_maxVertexCount,
+				m_attribInfo[i].Stride, m_attribInfo[i].Format,
+				ResourceFlag::ALLOW_UNORDERED_ACCESS,
+				MemoryType::DEFAULT, 1, nullptr, 1, nullptr,
+				m_attribInfo[i].Name.c_str());
+
 		createPipelines();
 		createDescriptorTables();
+
+		ResourceBarrier barriers[3];
+		auto numBarriers = m_pDepth->PixelZ.SetBarrier(barriers, ResourceState::UNORDERED_ACCESS);
+		numBarriers = m_pDepth->TileZ.SetBarrier(barriers, ResourceState::UNORDERED_ACCESS, numBarriers);
+		numBarriers = m_pDepth->BinZ.SetBarrier(barriers, ResourceState::UNORDERED_ACCESS, numBarriers);
+		commandList.Barrier(numBarriers, barriers);
+
 		firstTime = false;
 	}
 
@@ -472,6 +489,7 @@ void SoftGraphicsPipeline::draw(CommandList& commandList, uint32_t num, StageInd
 	numBarriers = m_vertexPos.SetBarrier(barriers.data(), ResourceState::UNORDERED_ACCESS, numBarriers);
 	for (auto& attrib : m_vertexAttribs)
 		numBarriers = attrib.SetBarrier(barriers.data(), ResourceState::UNORDERED_ACCESS, numBarriers);
+	commandList.Barrier(numBarriers, barriers.data());
 
 	// Vertex shader
 	{

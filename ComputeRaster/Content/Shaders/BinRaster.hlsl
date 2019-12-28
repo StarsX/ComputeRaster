@@ -47,12 +47,11 @@ RWStructuredBuffer<TilePrim> g_rwTilePrimitives : register (u1);
 
 globallycoherent
 RWTexture2D<uint> g_rwTileZ : register (u2);
-
-RWStructuredBuffer<uint> g_rwBinPrimCount : register (u3);
-RWStructuredBuffer<TilePrim> g_rwBinPrimitives : register (u4);
-
 globallycoherent
-RWTexture2D<uint> g_rwBinZ : register (u5);
+RWTexture2D<uint> g_rwBinZ : register (u3);
+
+RWStructuredBuffer<uint> g_rwBinPrimCount : register (u4);
+RWStructuredBuffer<TilePrim> g_rwBinPrimitives : register (u5);
 
 //--------------------------------------------------------------------------------------
 // Cull a primitive to the view frustum defined in clip space.
@@ -170,7 +169,7 @@ void BinPrimitive(uint primId, uint tileDimX, RasterInfo rasterInfo)
 
 		scanLine.z = scanLine.y;
 		const uint loopCount = scanLine.z - scanLine.x;
-		const bool isInsideY = i > minTile.y && i < maxTile.y;
+		const bool isInsideY = i + 2 > minTile.y && i + 2 < maxTile.y;
 
 		[allow_uav_condition]
 		for (uint k = 0; k < loopCount && scanLine.x < scanLine.y; ++k)	// Avoid time-out
@@ -182,7 +181,7 @@ void BinPrimitive(uint primId, uint tileDimX, RasterInfo rasterInfo)
 			for (uint j = scanLine.x; j < scanLine.y; ++j)
 			{
 				tile.x = j;
-				if (j > scanLine.x + 1 && j + 2 < scanLine.y && isInsideY)
+				if (j > scanLine.x + 2 && j + 3 < scanLine.y && isInsideY)
 					InterlockedMin(uavInfo.rwHiZ[tile], zMax, hiZ);
 				else
 				{
