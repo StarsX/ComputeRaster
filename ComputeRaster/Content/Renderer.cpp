@@ -148,7 +148,7 @@ void Renderer::Render(CommandList& commandList, uint32_t frameIndex)
 {
 	// Compute raster rendering
 	const float clearColor[] = { CLEAR_COLOR, 0.0f };
-	m_softGraphicsPipeline->SetRenderTargets(&m_colorTarget, &m_depth);
+	m_softGraphicsPipeline->SetRenderTargets(1, &m_colorTarget, &m_depth);
 	m_softGraphicsPipeline->ClearFloat(m_colorTarget, clearColor);
 	m_softGraphicsPipeline->ClearDepth(1.0f);
 	m_softGraphicsPipeline->SetViewport(Viewport(0.0f, 0.0f, m_viewport.x, m_viewport.y));

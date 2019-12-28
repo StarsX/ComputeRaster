@@ -91,7 +91,7 @@ bool SoftGraphicsPipeline::CreatePixelShaderLayout(Util::PipelineLayout& pipelin
 		pipelineLayout.SetConstants(slotCount, SizeOfInUint32(CBViewPort), cbvBindingMax + 1);
 		pipelineLayout.SetRange(slotCount + 1, DescriptorType::SRV, numSRVs,
 			srvBindingMax + 1, 0, DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
-		pipelineLayout.SetRange(slotCount + 2, DescriptorType::UAV, 2,
+		pipelineLayout.SetRange(slotCount + 2, DescriptorType::UAV, 3,
 			uavBindingMax + 1, 0, DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		X_RETURN(m_pipelineLayouts[PIX_RASTER], pipelineLayout.GetPipelineLayout(
 			m_pipelineLayoutCache, PipelineLayoutFlag::NONE, L"PixelRasterLayout"), false);
@@ -120,16 +120,18 @@ void SoftGraphicsPipeline::SetIndexBuffer(const Descriptor& indexBufferView)
 	m_indexBufferView = indexBufferView;
 }
 
-void SoftGraphicsPipeline::SetRenderTargets(Texture2D* pColorTarget, DepthBuffer* pDepth)
+void SoftGraphicsPipeline::SetRenderTargets(uint32_t numRTs, Texture2D* pColorTarget, DepthBuffer* pDepth)
 {
 	m_pColorTarget = pColorTarget;
 	m_pDepth = pDepth;
+	m_numColorTargets = numRTs;
 
-	m_outTables.resize(pDepth ? 4 : 1);
+	m_outTables.resize(pDepth ? numRTs + 3 : numRTs);
+	for (auto i = 0u; i < numRTs; ++i)
 	{
 		Util::DescriptorTable utilUavTable;
 		utilUavTable.SetDescriptors(0, 1, &pColorTarget->GetUAV());
-		m_outTables[0] = utilUavTable.GetCbvSrvUavTable(m_descriptorTableCache);
+		m_outTables[i] = utilUavTable.GetCbvSrvUavTable(m_descriptorTableCache);
 	}
 
 	if (pDepth)
@@ -287,7 +289,7 @@ bool SoftGraphicsPipeline::createPipelines()
 		utilPipelineLayout.SetConstants(0, SizeOfInUint32(CBViewPort), 0);
 		utilPipelineLayout.SetRange(1, DescriptorType::SRV, 2, 0, 0,
 			DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
-		utilPipelineLayout.SetRange(2, DescriptorType::UAV, 3, 0, 0,
+		utilPipelineLayout.SetRange(2, DescriptorType::UAV, 4, 0, 0,
 			DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		X_RETURN(m_pipelineLayouts[TILE_RASTER], utilPipelineLayout.GetPipelineLayout(
 			m_pipelineLayoutCache, PipelineLayoutFlag::NONE, L"TileRasterLayout"), false);

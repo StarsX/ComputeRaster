@@ -28,7 +28,7 @@ public:
 	void SetAttribute(uint32_t i, uint32_t stride, XUSG::Format format, const wchar_t* name = L"Attribute");
 	void SetVertexBuffer(const XUSG::Descriptor& vertexBufferView);
 	void SetIndexBuffer(const XUSG::Descriptor& indexBufferView);
-	void SetRenderTargets(XUSG::Texture2D* pColorTarget, DepthBuffer* pDepth);
+	void SetRenderTargets(uint32_t numRTs, XUSG::Texture2D* pColorTarget, DepthBuffer* pDepth);
 	void SetViewport(const XUSG::Viewport& viewport);
 	void VSSetDescriptorTable(uint32_t i, const XUSG::DescriptorTable& descriptorTable);
 	void PSSetDescriptorTable(uint32_t i, const XUSG::DescriptorTable& descriptorTable);
@@ -161,5 +161,6 @@ protected:
 	XUSG::Viewport			m_viewport;
 
 	uint32_t				m_maxVertexCount;
+	uint32_t				m_numColorTargets;
 	uint32_t				m_clearDepth;
 };

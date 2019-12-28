@@ -294,8 +294,10 @@ COPY /Y "$(OutDir)*.exe" "$(ProjectDir)..\Bin\"</Command>
   <ItemGroup>
     <None Include="Content\Shaders\Common.hlsli" />
     <None Include="Content\Shaders\DeclareAttributes.hlsli" />
+    <None Include="Content\Shaders\DeclareTargets.hlsli" />
     <None Include="Content\Shaders\PixelShader.hlsl" />
     <None Include="Content\Shaders\SetAttributes.hlsli" />
+    <None Include="Content\Shaders\SetTargets.hlsli" />
     <None Include="Content\Shaders\VertexShader.hlsl" />
     <None Include="Content\Shaders\VSStage.hlsli" />
     <None Include="XUSG\Core\XUSGBlend.inl" />
@@ -327,10 +329,10 @@ COPY /Y "$(OutDir)*.exe" "$(ProjectDir)..\Bin\"</Command>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CR_ATTRIBUTE_BASE_TYPE0=float;CR_ATTRIBUTE_COMPONENT_COUNT0=3;CR_ATTRIBUTE0=Nrm</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">CR_ATTRIBUTE_BASE_TYPE0=float;CR_ATTRIBUTE_COMPONENT_COUNT0=3;CR_ATTRIBUTE0=Nrm</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CR_ATTRIBUTE_BASE_TYPE0=float;CR_ATTRIBUTE_COMPONENT_COUNT0=3;CR_ATTRIBUTE0=Nrm</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CR_ATTRIBUTE_BASE_TYPE0=float;CR_ATTRIBUTE_COMPONENT_COUNT0=3;CR_ATTRIBUTE0=Nrm</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CR_ATTRIBUTE_BASE_TYPE0=float;CR_ATTRIBUTE_COMPONENT_COUNT0=3;CR_ATTRIBUTE0=Nrm;CR_TARGET_TYPE0=float4</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">CR_ATTRIBUTE_BASE_TYPE0=float;CR_ATTRIBUTE_COMPONENT_COUNT0=3;CR_ATTRIBUTE0=Nrm;CR_TARGET_TYPE0=float4</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CR_ATTRIBUTE_BASE_TYPE0=float;CR_ATTRIBUTE_COMPONENT_COUNT0=3;CR_ATTRIBUTE0=Nrm;CR_TARGET_TYPE0=float4</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CR_ATTRIBUTE_BASE_TYPE0=float;CR_ATTRIBUTE_COMPONENT_COUNT0=3;CR_ATTRIBUTE0=Nrm;CR_TARGET_TYPE0=float4</PreprocessorDefinitions>
     </FxCompile>
     <FxCompile Include="Content\Shaders\TileRaster.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>

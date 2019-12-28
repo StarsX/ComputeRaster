@@ -9,8 +9,8 @@
 #include "Common.hlsli"
 
 #define CR_PRIMITIVE_VERTEX_ATTRIBUTE_TYPE(t, c) t##3x##c
-#define CR_ATTRIBUTE_TYPE(t, c) t##c
-#define CR_ATTRIBUTE_FORMAT(n) CR_ATTRIBUTE_TYPE(CR_ATTRIBUTE_BASE_TYPE##n, CR_ATTRIBUTE_COMPONENT_COUNT##n)
+#define CR_ATTRIBUTE_GEN_TYPE(t, c) t##c
+#define CR_ATTRIBUTE_TYPE(n) CR_ATTRIBUTE_GEN_TYPE(CR_ATTRIBUTE_BASE_TYPE##n, CR_ATTRIBUTE_COMPONENT_COUNT##n)
 
 #define COMPUTE_ATTRIBUTE_float(n) \
 	{ \
@@ -30,8 +30,12 @@
 #define COMPUTE_ATTRIBUTE(t, n) COMPUTE_ATTRIBUTE_##t(n)
 #define SET_ATTRIBUTE(n) COMPUTE_ATTRIBUTE(CR_ATTRIBUTE_BASE_TYPE##n, n)
 
-#define DEFINED(n) defined(CR_ATTRIBUTE_BASE_TYPE##n) && defined(CR_ATTRIBUTE_COMPONENT_COUNT##n)
-#define DECLARE_ATTRIBUTE(n) Buffer<CR_ATTRIBUTE_FORMAT(n)> g_roVertexAtt##n
+#define DEFINED_ATTRIBUTE(n) (defined(CR_ATTRIBUTE_BASE_TYPE##n) && defined(CR_ATTRIBUTE_COMPONENT_COUNT##n))
+#define DECLARE_ATTRIBUTE(n) Buffer<CR_ATTRIBUTE_TYPE(n)> g_roVertexAtt##n
+
+#define SET_TARGET(n) g_rwRenderTarget##n[pixelPos] = output.CR_TARGET##n
+#define DEFINED_TARGET(n) (defined(CR_TARGET_TYPE##n) && defined(CR_TARGET##n))
+#define DECLARE_TARGET(n) RWTexture2D<CR_TARGET_TYPE##n> g_rwRenderTarget##n
 
 //--------------------------------------------------------------------------------------
 // Buffers
@@ -43,8 +47,9 @@ StructuredBuffer<TilePrim> g_roTilePrimitives;
 //--------------------------------------------------------------------------------------
 // UAV buffers
 //--------------------------------------------------------------------------------------
-RWTexture2D<float4>	g_rwRenderTarget;
-RWTexture2D<uint>	g_rwDepth;
+#include "DeclareTargets.hlsli"
+RWTexture2D<uint> g_rwDepth;
+RWTexture2D<uint> g_rwHiZ;
 
 [numthreads(8, 8, 1)]
 void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : SV_GroupIndex)
@@ -61,6 +66,11 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 
 	// To screen space.
 	ToScreenSpace(primVPos);
+
+#if RE_HI_Z
+	const uint zMin = asuint(min(primVPos[0].z, min(primVPos[1].z, primVPos[2].z)));
+	if (g_rwHiZ[tile] < zMin) return;
+#endif
 
 	PSIn input;
 	float3 w;
@@ -87,6 +97,13 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 	
 #include "SetAttributes.hlsli"
 
+	// Call pixel shader
+#ifndef CR_OUT_STRUCT_TYPE
+#define CR_OUT_STRUCT_TYPE CR_TARGET_TYPE0
+#endif
+	CR_OUT_STRUCT_TYPE output = PSMain(input);
+
+	// Mutual exclusive writing
 	for (i = 0; i < 0xffffffff; ++i)
 	{
 		InterlockedExchange(g_rwDepth[pixelPos], 0xffffffff, depthMin);
@@ -96,7 +113,7 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 			if (depth <= depthMin)
 			{
 				//g_rwRenderTarget[pixelPos] = float4(w, 1.0);
-				g_rwRenderTarget[pixelPos] = PSMain(input);	// Call pixel shader
+#include "SetTargets.hlsli"
 			}
 			g_rwDepth[pixelPos] = min(depth, depthMin);
 			break;

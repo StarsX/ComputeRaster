@@ -6,13 +6,13 @@
 #include "VertexShader.hlsl"
 #undef main
 
-#define CR_ATTRIBUTE_TYPE(t, c) t##c
-#define CR_ATTRIBUTE_FORMAT(n) CR_ATTRIBUTE_TYPE(CR_ATTRIBUTE_BASE_TYPE##n, CR_ATTRIBUTE_COMPONENT_COUNT##n)
+#define CR_ATTRIBUTE_GEN_TYPE(t, c) t##c
+#define CR_ATTRIBUTE_TYPE(n) CR_ATTRIBUTE_GEN_TYPE(CR_ATTRIBUTE_BASE_TYPE##n, CR_ATTRIBUTE_COMPONENT_COUNT##n)
 
 #define SET_ATTRIBUTE(n) g_rwVertexAtt##n[DTid] = output.CR_ATTRIBUTE##n
 
-#define DEFINED(n) defined(CR_ATTRIBUTE_BASE_TYPE##n) && defined(CR_ATTRIBUTE_COMPONENT_COUNT##n)
-#define DECLARE_ATTRIBUTE(n) RWBuffer<CR_ATTRIBUTE_FORMAT(n)> g_rwVertexAtt##n
+#define DEFINED_ATTRIBUTE(n) (defined(CR_ATTRIBUTE_BASE_TYPE##n) && defined(CR_ATTRIBUTE_COMPONENT_COUNT##n))
+#define DECLARE_ATTRIBUTE(n) RWBuffer<CR_ATTRIBUTE_TYPE(n)> g_rwVertexAtt##n
 
 //--------------------------------------------------------------------------------------
 // Buffers

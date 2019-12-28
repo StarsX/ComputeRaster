@@ -18,6 +18,7 @@ RWStructuredBuffer<uint> g_rwTilePrimCount;
 RWStructuredBuffer<TilePrim> g_rwTilePrimitives;
 
 globallycoherent
+RWTexture2D<uint> g_rwTileZ;
 RWTexture2D<uint> g_rwHiZ;
 
 [numthreads(8, 8, 1)]
@@ -36,6 +37,11 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 	// To screen space.
 	ToScreenSpace(primVPos);
 
+#if RE_HI_Z
+	const uint zMin = asuint(min(primVPos[0].z, min(primVPos[1].z, primVPos[2].z)));
+	if (g_rwHiZ[bin] < zMin) return;
+#endif
+
 	// Scale the primitive for conservative rasterization.
 	float3x2 v;
 	[unroll]
@@ -49,23 +55,25 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 
 #if HI_Z
 	// Depth test
+#if !RE_HI_Z
 	const uint zMin = asuint(min(primVPos[0].z, min(primVPos[1].z, primVPos[2].z)));
+#endif
 	const uint zMax = asuint(max(primVPos[0].z, max(primVPos[1].z, primVPos[2].z)));
 
 	// Shrink the primitive.
 	const float area = determinant(v[0], v[1], v[2]);
 	sv = Scale(v, -0.5);
 	
-	uint hiZ;
+	uint tileZ;
 	if (area >= 2.0 && Overlap(pos, sv, w))
-		InterlockedMin(g_rwHiZ[tile], zMax, hiZ);
+		InterlockedMin(g_rwTileZ[tile], zMax, tileZ);
 	else
 	{
 		DeviceMemoryBarrier();
-		hiZ = g_rwHiZ[tile];
+		tileZ = g_rwTileZ[tile];
 	}
 
-	if (hiZ < zMin) return;
+	if (tileZ < zMin) return;
 #endif
 
 	tilePrim.TileIdx = g_tileDim.x * tile.y + tile.x;

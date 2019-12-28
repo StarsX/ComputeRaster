@@ -208,6 +208,12 @@
     <None Include="Content\Shaders\VSStage.hlsli">
       <Filter>Shaders\Internal</Filter>
     </None>
+    <None Include="Content\Shaders\DeclareTargets.hlsli">
+      <Filter>Shaders\Internal</Filter>
+    </None>
+    <None Include="Content\Shaders\SetTargets.hlsli">
+      <Filter>Shaders\Internal</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Content\Shaders\BinRaster.hlsl">
