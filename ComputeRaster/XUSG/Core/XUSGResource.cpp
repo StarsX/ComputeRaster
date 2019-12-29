@@ -1309,7 +1309,7 @@ bool DepthStencil::create(const Device& device, uint32_t width, uint32_t height,
 
 		// Determine initial state
 		m_states.resize(arraySize * numMips);
-		for (auto& initState : m_states) initState = ResourceState::COMMON;
+		for (auto& initState : m_states) initState = ResourceState::DEPTH_WRITE;
 
 		// Optimized clear value
 		D3D12_CLEAR_VALUE clearValue = { static_cast<DXGI_FORMAT>(format) };
