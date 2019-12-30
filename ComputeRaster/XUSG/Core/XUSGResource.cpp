@@ -343,8 +343,20 @@ bool Texture2D::Create(const Device& device, uint32_t width, uint32_t height, Fo
 
 	// Determine initial state
 	m_states.resize(arraySize * numMips);
-	for (auto& initState : m_states)
-		initState = memoryType != MemoryType::DEFAULT ? ResourceState::GENERAL_READ : ResourceState::COMMON;
+	switch (memoryType)
+	{
+	case MemoryType::UPLOAD:
+		for (auto& state : m_states)
+			state = ResourceState::GENERAL_READ;
+		break;
+	case MemoryType::READBACK:
+		for (auto& state : m_states)
+			state = ResourceState::COPY_DEST;
+		break;
+	default:
+		for (auto& state : m_states)
+			state = ResourceState::COMMON;
+	}
 	
 	V_RETURN(m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(static_cast<D3D12_HEAP_TYPE>(memoryType)),
 		D3D12_HEAP_FLAG_NONE, &desc, static_cast<D3D12_RESOURCE_STATES>(m_states[0]), nullptr,
@@ -1439,8 +1451,20 @@ bool Texture3D::Create(const Device& device, uint32_t width, uint32_t height,
 
 	// Determine initial state
 	m_states.resize(numMips);
-	for (auto& initState : m_states)
-		initState = memoryType != MemoryType::DEFAULT ? ResourceState::GENERAL_READ : ResourceState::COMMON;
+	switch (memoryType)
+	{
+	case MemoryType::UPLOAD:
+		for (auto& state : m_states)
+			state = ResourceState::GENERAL_READ;
+		break;
+	case MemoryType::READBACK:
+		for (auto& state : m_states)
+			state = ResourceState::COPY_DEST;
+		break;
+	default:
+		for (auto& state : m_states)
+			state = ResourceState::COMMON;
+	}
 	
 	V_RETURN(m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(static_cast<D3D12_HEAP_TYPE>(memoryType)),
 		D3D12_HEAP_FLAG_NONE, &desc, static_cast<D3D12_RESOURCE_STATES>(m_states[0]), nullptr,
@@ -1740,7 +1764,20 @@ bool RawBuffer::create(const Device& device, uint64_t byteWidth, ResourceFlag re
 
 	// Determine initial state
 	m_states.resize(1);
-	m_states[0] = memoryType != MemoryType::DEFAULT ? ResourceState::GENERAL_READ : ResourceState::COMMON;
+	switch (memoryType)
+	{
+	case MemoryType::UPLOAD:
+		for (auto& state : m_states)
+			state = ResourceState::GENERAL_READ;
+		break;
+	case MemoryType::READBACK:
+		for (auto& state : m_states)
+			state = ResourceState::COPY_DEST;
+		break;
+	default:
+		for (auto& state : m_states)
+			state = ResourceState::COMMON;
+	}
 
 	V_RETURN(m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(static_cast<D3D12_HEAP_TYPE>(memoryType)),
 		D3D12_HEAP_FLAG_NONE, &desc, static_cast<D3D12_RESOURCE_STATES>(m_states[0]), nullptr,

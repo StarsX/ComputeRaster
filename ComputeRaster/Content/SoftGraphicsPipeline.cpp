@@ -227,14 +227,14 @@ bool SoftGraphicsPipeline::CreateDepthBuffer(DepthBuffer& depth, uint32_t width,
 	Format format, const wchar_t* name)
 {
 	N_RETURN(depth.PixelZ.Create(m_device, width, height, format, 1,
-		ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, 1, MemoryType::DEFAULT,
-		false, (wstring(name) + L".PixelZ").c_str()), false);
+		ResourceFlag::ALLOW_UNORDERED_ACCESS | ResourceFlag::ALLOW_SIMULTANEOUS_ACCESS,
+		1, 1, MemoryType::DEFAULT, false, (wstring(name) + L".PixelZ").c_str()), false);
 	N_RETURN(depth.TileZ.Create(m_device, DIV_UP(width, TILE_SIZE), DIV_UP(height, TILE_SIZE),
-		format, 1, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, 1, MemoryType::DEFAULT,
-		false, (wstring(name) + L".TileZ").c_str()), false);
+		format, 1, ResourceFlag::ALLOW_UNORDERED_ACCESS | ResourceFlag::ALLOW_SIMULTANEOUS_ACCESS,
+		1, 1, MemoryType::DEFAULT, false, (wstring(name) + L".TileZ").c_str()), false);
 	N_RETURN(depth.BinZ.Create(m_device, DIV_UP(width, BIN_SIZE), DIV_UP(height, BIN_SIZE),
-		format, 1, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, 1, MemoryType::DEFAULT,
-		false, (wstring(name) + L".BinZ").c_str()), false);
+		format, 1, ResourceFlag::ALLOW_UNORDERED_ACCESS | ResourceFlag::ALLOW_SIMULTANEOUS_ACCESS,
+		1, 1, MemoryType::DEFAULT, false, (wstring(name) + L".BinZ").c_str()), false);
 
 	return true;
 }
@@ -462,13 +462,6 @@ void SoftGraphicsPipeline::draw(CommandList& commandList, uint32_t num, StageInd
 
 		createPipelines();
 		createDescriptorTables();
-
-		ResourceBarrier barriers[3];
-		auto numBarriers = m_pDepth->PixelZ.SetBarrier(barriers, ResourceState::UNORDERED_ACCESS);
-		numBarriers = m_pDepth->TileZ.SetBarrier(barriers, ResourceState::UNORDERED_ACCESS, numBarriers);
-		numBarriers = m_pDepth->BinZ.SetBarrier(barriers, ResourceState::UNORDERED_ACCESS, numBarriers);
-		commandList.Barrier(numBarriers, barriers);
-
 		firstTime = false;
 	}
 
