@@ -21,14 +21,14 @@ namespace XUSG
 			const uint32_t* offsets = nullptr, MemoryType memoryType = MemoryType::UPLOAD,
 			const wchar_t* name = nullptr);
 		bool Upload(const CommandList& commandList, Resource& uploader, const void* pData,
-			size_t size, uint32_t i = 0, ResourceState srcState = ResourceState::COMMON,
+			size_t size, uint32_t cbvIdx = 0, ResourceState srcState = ResourceState::COMMON,
 			ResourceState dstState = ResourceState::COMMON);
 
-		void* Map(uint32_t i = 0);
+		void* Map(uint32_t cbvIdx = 0);
 		void Unmap();
 
 		const Resource& GetResource() const;
-		Descriptor		GetCBV(uint32_t i = 0) const;
+		Descriptor		GetCBV(uint32_t idx = 0) const;
 
 	protected:
 		Descriptor allocateCbvPool(const wchar_t* name);
@@ -57,11 +57,11 @@ namespace XUSG
 			BarrierFlag flags = BarrierFlag::NONE);
 
 		const Resource& GetResource() const;
-		Descriptor		GetSRV(uint32_t i = 0) const;
+		Descriptor		GetSRV(uint32_t idx = 0) const;
 
 		ResourceBarrier	Transition(ResourceState dstState, uint32_t subresource = BARRIER_ALL_SUBRESOURCES,
 			BarrierFlag flag = BarrierFlag::NONE);
-		ResourceState	GetResourceState(uint32_t i = 0) const;
+		ResourceState	GetResourceState(uint32_t subresource = 0) const;
 
 		Format GetFormat() const;
 		uint32_t GetWidth() const;
@@ -130,9 +130,9 @@ namespace XUSG
 			const DescriptorTable* pSrvTables = nullptr, uint32_t srvSlot = 0, uint8_t baseMip = 1,
 			uint8_t numMips = 0, uint32_t baseSlice = 0, uint32_t numSlices = 0);
 
-		Descriptor GetUAV(uint8_t i = 0) const;
-		Descriptor GetPackedUAV(uint8_t i = 0) const;
-		Descriptor GetSRVLevel(uint8_t i) const;
+		Descriptor GetUAV(uint8_t idx = 0) const;
+		Descriptor GetPackedUAV(uint8_t idx = 0) const;
+		Descriptor GetSRVLevel(uint8_t idx) const;
 
 		uint32_t GetHeight() const;
 
@@ -254,9 +254,9 @@ namespace XUSG
 		bool CreateUAVs(Format format = Format::UNKNOWN, uint8_t numMips = 1,
 			std::vector<Descriptor>* pUavs = nullptr);
 
-		Descriptor GetUAV(uint8_t i = 0) const;
-		Descriptor GetPackedUAV(uint8_t i = 0) const;
-		Descriptor GetSRVLevel(uint8_t i) const;
+		Descriptor GetUAV(uint8_t idx = 0) const;
+		Descriptor GetPackedUAV(uint8_t idx = 0) const;
+		Descriptor GetSRVLevel(uint8_t idx) const;
 
 		uint32_t GetDepth() const;
 
@@ -282,15 +282,15 @@ namespace XUSG
 			const uint32_t* firstSRVElements = nullptr, uint32_t numUAVs = 1,
 			const uint32_t* firstUAVElements = nullptr, const wchar_t* name = nullptr);
 		bool Upload(const CommandList& commandList, Resource& uploader, const void* pData, size_t size,
-			uint32_t firstSubresource = 0, ResourceState dstState = ResourceState::COMMON);
+			uint32_t viewIdx = 0, ResourceState dstState = ResourceState::COMMON);
 		bool CreateSRVs(uint64_t byteWidth, const uint32_t* firstElements = nullptr,
 			uint32_t numDescriptors = 1);
 		bool CreateUAVs(uint64_t byteWidth, const uint32_t* firstElements = nullptr,
 			uint32_t numDescriptors = 1);
 
-		Descriptor GetUAV(uint32_t i = 0) const;
+		Descriptor GetUAV(uint32_t idx = 0) const;
 
-		void* Map(uint32_t i = 0);
+		void* Map(uint32_t viewIdx = 0);
 		void Unmap();
 
 	protected:
@@ -348,7 +348,7 @@ namespace XUSG
 			const uint32_t* firstElements = nullptr, uint32_t numDescriptors = 1,
 			std::vector<Descriptor>* pUavs = nullptr);
 
-		Descriptor GetPackedUAV(uint32_t i = 0) const;
+		Descriptor GetPackedUAV(uint32_t idx = 0) const;
 
 	protected:
 		std::vector<Descriptor>	m_packedUavs;
@@ -377,7 +377,7 @@ namespace XUSG
 			uint32_t numUAVs = 1, const uint32_t* firstUAVElements = nullptr,
 			const wchar_t* name = nullptr);
 
-		VertexBufferView GetVBV(uint32_t i = 0) const;
+		VertexBufferView GetVBV(uint32_t idx = 0) const;
 
 	protected:
 		std::vector<VertexBufferView> m_vbvs;
@@ -401,7 +401,7 @@ namespace XUSG
 			uint32_t numUAVs = 1, const uint32_t* firstUAVElements = nullptr,
 			const wchar_t* name = nullptr);
 
-		IndexBufferView GetIBV(uint32_t i = 0) const;
+		IndexBufferView GetIBV(uint32_t idx = 0) const;
 
 	protected:
 		std::vector<IndexBufferView> m_ibvs;
