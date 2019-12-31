@@ -247,9 +247,7 @@ bool SoftGraphicsPipeline::CreateVertexBuffer(const CommandList& commandList,
 		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, 1, nullptr, name), false);
 	uploaders.push_back(nullptr);
 
-	return vb.Upload(commandList, uploaders.back(),
-		ResourceState::NON_PIXEL_SHADER_RESOURCE,
-		pData, srtide * numVert);
+	return vb.Upload(commandList, uploaders.back(), pData, srtide * numVert);
 }
 
 bool SoftGraphicsPipeline::CreateIndexBuffer(const CommandList& commandList,
@@ -264,9 +262,7 @@ bool SoftGraphicsPipeline::CreateIndexBuffer(const CommandList& commandList,
 		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, 1, nullptr, name), false);
 	uploaders.push_back(nullptr);
 
-	return ib.Upload(commandList, uploaders.back(),
-		ResourceState::NON_PIXEL_SHADER_RESOURCE,
-		pData, byteWidth);
+	return ib.Upload(commandList, uploaders.back(), pData, byteWidth);
 }
 
 DescriptorTableCache& SoftGraphicsPipeline::GetDescriptorTableCache()
@@ -355,17 +351,14 @@ bool SoftGraphicsPipeline::createResetBuffer(const CommandList& commandList, vec
 
 	const uint32_t pDataReset[] = { 0, 1, 1 };
 	uploaders.push_back(nullptr);
-	N_RETURN(m_tilePrimCount.Upload(commandList, uploaders.back(),
-		ResourceState::COPY_SOURCE, pDataReset, sizeof(uint32_t[3])), false);
+	N_RETURN(m_tilePrimCount.Upload(commandList, uploaders.back(), pDataReset, sizeof(uint32_t[3])), false);
 
 	uploaders.push_back(nullptr);
-	N_RETURN(m_binPrimCount.Upload(commandList, uploaders.back(),
-		ResourceState::COPY_SOURCE, pDataReset, sizeof(uint32_t[3])), false);
+	N_RETURN(m_binPrimCount.Upload(commandList, uploaders.back(), pDataReset, sizeof(uint32_t[3])), false);
 
 	uploaders.push_back(nullptr);
 
-	return m_tilePrimCountReset.Upload(commandList, uploaders.back(),
-		ResourceState::COPY_SOURCE, pDataReset, sizeof(uint32_t));
+	return m_tilePrimCountReset.Upload(commandList, uploaders.back(), pDataReset, sizeof(uint32_t));
 }
 
 bool SoftGraphicsPipeline::createCommandLayout()
@@ -474,15 +467,14 @@ void SoftGraphicsPipeline::draw(CommandList& commandList, uint32_t num, StageInd
 
 	// Set resource barriers
 	// Due to auto promotions, no need to call commandList.Barrier()
-	vector<ResourceBarrier> barriers(m_vertexAttribs.size() + 3);
-	auto numBarriers = m_tilePrimCount.SetBarrier(barriers.data(), ResourceState::COPY_DEST);
+	ResourceBarrier barrier;
+	m_tilePrimCount.SetBarrier(&barrier, ResourceState::COPY_DEST);
 #if USE_TRIPPLE_RASTER
-	numBarriers = m_binPrimCount.SetBarrier(barriers.data(), ResourceState::COPY_DEST, numBarriers);
+	m_binPrimCount.SetBarrier(&barrier, ResourceState::COPY_DEST);
 #endif
-	numBarriers = m_vertexPos.SetBarrier(barriers.data(), ResourceState::UNORDERED_ACCESS, numBarriers);
+	m_vertexPos.SetBarrier(&barrier, ResourceState::UNORDERED_ACCESS);
 	for (auto& attrib : m_vertexAttribs)
-		numBarriers = attrib.SetBarrier(barriers.data(), ResourceState::UNORDERED_ACCESS, numBarriers);
-	commandList.Barrier(numBarriers, barriers.data());
+		attrib.SetBarrier(&barrier, ResourceState::UNORDERED_ACCESS);
 
 	// Vertex shader
 	{

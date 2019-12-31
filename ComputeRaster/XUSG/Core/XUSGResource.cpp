@@ -101,9 +101,7 @@ bool ConstantBuffer::Create(const Device& device, uint64_t byteWidth, uint32_t n
 		&CD3DX12_HEAP_PROPERTIES(static_cast<D3D12_HEAP_TYPE>(memoryType)),
 		D3D12_HEAP_FLAG_NONE,
 		&CD3DX12_RESOURCE_DESC::Buffer(byteWidth, D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE),
-		memoryType == MemoryType::DEFAULT ?
-		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER :
-		D3D12_RESOURCE_STATE_GENERIC_READ,
+		memoryType == MemoryType::DEFAULT ? D3D12_RESOURCE_STATE_COMMON : D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(&m_resource)), clog, false);
 	if (name) m_resource->SetName((wstring(name) + L".Resource").c_str());
@@ -130,8 +128,8 @@ bool ConstantBuffer::Create(const Device& device, uint64_t byteWidth, uint32_t n
 	return true;
 }
 
-bool ConstantBuffer::Upload(const CommandList& commandList, Resource& uploader,
-	const void* pData, size_t size, uint32_t i)
+bool ConstantBuffer::Upload(const CommandList& commandList, Resource& uploader, const void* pData,
+	size_t size, uint32_t i, ResourceState srcState, ResourceState dstState)
 {
 	const auto offset = m_cbvOffsets.empty() ? 0 : m_cbvOffsets[i];
 	SubresourceData subresourceData;
@@ -154,13 +152,15 @@ bool ConstantBuffer::Upload(const CommandList& commandList, Resource& uploader,
 
 	// Copy data to the intermediate upload heap and then schedule a copy 
 	// from the upload heap to the buffer.
-	commandList.Barrier(1, &ResourceBarrier::Transition(m_resource.get(),
-		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_STATE_COPY_DEST));
+	if (srcState != ResourceState::COMMON)
+		commandList.Barrier(1, &ResourceBarrier::Transition(m_resource.get(),
+			static_cast<D3D12_RESOURCE_STATES>(srcState), D3D12_RESOURCE_STATE_COPY_DEST));
 	M_RETURN(UpdateSubresources(const_cast<CommandList&>(commandList).GetCommandList().get(),
 		m_resource.get(), uploader.get(), offset, 0, 1, &subresourceData) <= 0,
 		clog, "Failed to upload the resource.", false);
-	commandList.Barrier(1, &ResourceBarrier::Transition(m_resource.get(),
-		D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+	if (dstState != ResourceState::COMMON)
+		commandList.Barrier(1, &ResourceBarrier::Transition(m_resource.get(),
+			D3D12_RESOURCE_STATE_COPY_DEST, static_cast<D3D12_RESOURCE_STATES>(dstState)));
 
 	return true;
 }
@@ -380,8 +380,8 @@ bool Texture2D::Create(const Device& device, uint32_t width, uint32_t height, Fo
 }
 
 bool Texture2D::Upload(const CommandList& commandList, Resource& uploader,
-	ResourceState dstState, SubresourceData* pSubresourceData,
-	uint32_t numSubresources, uint32_t firstSubresource)
+	SubresourceData* pSubresourceData, uint32_t numSubresources,
+	ResourceState dstState, uint32_t firstSubresource)
 {
 	N_RETURN(pSubresourceData, false);
 
@@ -408,15 +408,18 @@ bool Texture2D::Upload(const CommandList& commandList, Resource& uploader,
 	M_RETURN(UpdateSubresources(const_cast<CommandList&>(commandList).GetCommandList().get(),
 		m_resource.get(), uploader.get(), 0, firstSubresource, numSubresources, pSubresourceData) <= 0,
 		clog, "Failed to upload the resource.", false);
-	assert(dstState != ResourceState::COMMON);
-	numBarriers = SetBarrier(&barrier, dstState);
-	commandList.Barrier(numBarriers, &barrier);
+	const bool decay = m_resource->GetDesc().Flags & D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS;
+	if (dstState != ResourceState::COMMON || !decay)
+	{
+		numBarriers = SetBarrier(&barrier, dstState);
+		commandList.Barrier(numBarriers, &barrier);
+	}
 
 	return true;
 }
 
 bool Texture2D::Upload(const CommandList& commandList, Resource& uploader,
-	ResourceState dstState, const void* pData, uint8_t stride)
+	const void* pData, uint8_t stride, ResourceState dstState)
 {
 	const auto desc = m_resource->GetDesc();
 
@@ -425,7 +428,7 @@ bool Texture2D::Upload(const CommandList& commandList, Resource& uploader,
 	subresourceData.RowPitch = stride * static_cast<uint32_t>(desc.Width);
 	subresourceData.SlicePitch = subresourceData.RowPitch * desc.Height;
 
-	return Upload(commandList, uploader, dstState, &subresourceData, 1);
+	return Upload(commandList, uploader, &subresourceData, 1, dstState);
 }
 
 bool Texture2D::CreateSRVs(uint32_t arraySize, Format format, uint8_t numMips,
@@ -1022,7 +1025,7 @@ bool RenderTarget::create(const Device& device, uint32_t width, uint32_t height,
 
 	// Determine initial state
 	m_states.resize(arraySize * numMips);
-	for (auto& initState : m_states) initState = ResourceState::COMMON;
+	for (auto& state : m_states) state = ResourceState::COMMON;
 
 	// Optimized clear value
 	D3D12_CLEAR_VALUE clearValue = { static_cast<DXGI_FORMAT>(format) };
@@ -1321,7 +1324,7 @@ bool DepthStencil::create(const Device& device, uint32_t width, uint32_t height,
 
 		// Determine initial state
 		m_states.resize(arraySize * numMips);
-		for (auto& initState : m_states) initState = ResourceState::DEPTH_WRITE;
+		for (auto& state : m_states) state = ResourceState::DEPTH_WRITE;
 
 		// Optimized clear value
 		D3D12_CLEAR_VALUE clearValue = { static_cast<DXGI_FORMAT>(format) };
@@ -1629,8 +1632,8 @@ bool RawBuffer::Create(const Device& device, uint64_t byteWidth, ResourceFlag re
 	return true;
 }
 
-bool RawBuffer::Upload(const CommandList& commandList, Resource& uploader,
-	ResourceState dstState, const void* pData, size_t size, uint32_t firstSubresource)
+bool RawBuffer::Upload(const CommandList& commandList, Resource& uploader, const void* pData,
+	size_t size, uint32_t firstSubresource, ResourceState dstState)
 {
 	const auto offset = m_srvOffsets.empty() ? 0 : m_srvOffsets[firstSubresource];
 	D3D12_SUBRESOURCE_DATA subresourceData;
@@ -1659,9 +1662,11 @@ bool RawBuffer::Upload(const CommandList& commandList, Resource& uploader,
 	M_RETURN(UpdateSubresources(const_cast<CommandList&>(commandList).GetCommandList().get(),
 		m_resource.get(), uploader.get(), offset, 0, 1, &subresourceData) <= 0,
 		clog, "Failed to upload the resource.", false);
-	assert(dstState != ResourceState::COMMON);
-	numBarriers = SetBarrier(&barrier, dstState);
-	commandList.Barrier(numBarriers, &barrier);
+	if (dstState != ResourceState::COMMON)
+	{
+		numBarriers = SetBarrier(&barrier, dstState);
+		commandList.Barrier(numBarriers, &barrier);
+	}
 
 	return true;
 }

@@ -21,7 +21,8 @@ namespace XUSG
 			const uint32_t* offsets = nullptr, MemoryType memoryType = MemoryType::UPLOAD,
 			const wchar_t* name = nullptr);
 		bool Upload(const CommandList& commandList, Resource& uploader, const void* pData,
-			size_t size, uint32_t i = 0);
+			size_t size, uint32_t i = 0, ResourceState srcState = ResourceState::COMMON,
+			ResourceState dstState = ResourceState::COMMON);
 
 		void* Map(uint32_t i = 0);
 		void Unmap();
@@ -65,8 +66,6 @@ namespace XUSG
 		Format GetFormat() const;
 		uint32_t GetWidth() const;
 
-		//static void CreateReadBuffer(const Device& device,
-			//CPDXBuffer& pDstBuffer, const CPDXBuffer& pSrcBuffer);
 	protected:
 		void setDevice(const Device& device);
 		Descriptor allocateSrvUavPool();
@@ -95,10 +94,11 @@ namespace XUSG
 			uint32_t arraySize = 1, ResourceFlag resourceFlags = ResourceFlag::NONE,
 			uint8_t numMips = 1, uint8_t sampleCount = 1, MemoryType memoryType = MemoryType::DEFAULT,
 			bool isCubeMap = false, const wchar_t* name = nullptr);
-		bool Upload(const CommandList& commandList, Resource& uploader, ResourceState dstState,
-			SubresourceData* pSubresourceData, uint32_t numSubresources = 1, uint32_t firstSubresource = 0);
-		bool Upload(const CommandList& commandList, Resource& uploader, ResourceState dstState,
-			const void* pData, uint8_t stride = sizeof(float));
+		bool Upload(const CommandList& commandList, Resource& uploader,
+			SubresourceData* pSubresourceData, uint32_t numSubresources = 1,
+			ResourceState dstState = ResourceState::COMMON, uint32_t firstSubresource = 0);
+		bool Upload(const CommandList& commandList, Resource& uploader, const void* pData,
+			uint8_t stride = sizeof(float), ResourceState dstState = ResourceState::COMMON);
 		bool CreateSRVs(uint32_t arraySize, Format format = Format::UNKNOWN, uint8_t numMips = 1,
 			uint8_t sampleCount = 1, bool isCubeMap = false);
 		bool CreateSRVLevels(uint32_t arraySize, uint8_t numMips, Format format = Format::UNKNOWN,
@@ -281,8 +281,8 @@ namespace XUSG
 			MemoryType memoryType = MemoryType::DEFAULT, uint32_t numSRVs = 1,
 			const uint32_t* firstSRVElements = nullptr, uint32_t numUAVs = 1,
 			const uint32_t* firstUAVElements = nullptr, const wchar_t* name = nullptr);
-		bool Upload(const CommandList& commandList, Resource& uploader, ResourceState dstState,
-			const void* pData, size_t size, uint32_t firstSubresource = 0);
+		bool Upload(const CommandList& commandList, Resource& uploader, const void* pData, size_t size,
+			uint32_t firstSubresource = 0, ResourceState dstState = ResourceState::COMMON);
 		bool CreateSRVs(uint64_t byteWidth, const uint32_t* firstElements = nullptr,
 			uint32_t numDescriptors = 1);
 		bool CreateUAVs(uint64_t byteWidth, const uint32_t* firstElements = nullptr,
