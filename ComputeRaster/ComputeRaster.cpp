@@ -186,7 +186,7 @@ void ComputeRaster::OnUpdate()
 	const auto eyePt = XMLoadFloat3(&m_eyePt);
 	const auto view = XMLoadFloat4x4(&m_view);
 	const auto proj = XMLoadFloat4x4(&m_proj);
-	m_renderer->UpdateFrame(m_frameIndex, view * proj, time);
+	m_renderer->UpdateFrame(m_frameIndex, view, proj, m_eyePt, time);
 }
 
 // Render the scene.

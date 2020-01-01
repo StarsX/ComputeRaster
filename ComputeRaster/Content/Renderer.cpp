@@ -62,7 +62,7 @@ bool Renderer::Init(const CommandList& commandList, uint32_t width,
 	}
 
 	// Per-frame lighting
-	N_RETURN(m_cbLighting.Create(m_device, sizeof(XMFLOAT4[3]) * frameCount, frameCount), false);
+	N_RETURN(m_cbLighting.Create(m_device, sizeof(XMFLOAT4[4]) * frameCount, frameCount), false);
 	for (auto i = 0u; i < SoftGraphicsPipeline::FrameCount; ++i)
 	{
 		Util::DescriptorTable utilCbvTable;
@@ -114,7 +114,8 @@ bool Renderer::Init(const CommandList& commandList, uint32_t width,
 	return true;
 }
 
-void Renderer::UpdateFrame(uint32_t frameIndex, CXMMATRIX viewProj, double time)
+void Renderer::UpdateFrame(uint32_t frameIndex, CXMMATRIX view,
+	CXMMATRIX proj, const XMFLOAT3& eyePt, double time)
 {
 	{
 		struct CBMatrices
@@ -126,7 +127,7 @@ void Renderer::UpdateFrame(uint32_t frameIndex, CXMMATRIX viewProj, double time)
 		const auto world = XMMatrixScaling(m_posScale.w, m_posScale.w, m_posScale.w) *
 			XMMatrixTranslation(m_posScale.x, m_posScale.y, m_posScale.z);
 		const auto worldInv = XMMatrixInverse(nullptr, world);
-		pCb->WorldViewProj = XMMatrixTranspose(world * viewProj);
+		pCb->WorldViewProj = XMMatrixTranspose(world * view * proj);
 		pCb->Normal = worldInv;
 	}
 
@@ -135,12 +136,14 @@ void Renderer::UpdateFrame(uint32_t frameIndex, CXMMATRIX viewProj, double time)
 		{
 			XMFLOAT4 AmbientColor;
 			XMFLOAT4 LightColor;
-			XMFLOAT3 LightPt;
+			XMFLOAT4 LightPt;
+			XMFLOAT3 EyePt;
 		};
 		const auto pCb = reinterpret_cast<CBLighting*>(m_cbLighting.Map(frameIndex));
 		pCb->AmbientColor = XMFLOAT4(0.6f, 0.7f, 1.0f, 0.2f);
 		pCb->LightColor = XMFLOAT4(1.0f, 0.7f, 0.5f, static_cast<float>(sin(time)) * 0.3f + 0.7f);
-		XMStoreFloat3(&pCb->LightPt, XMVectorSet(1.0f, 1.0f, -1.0, 0.0f));
+		XMStoreFloat4(&pCb->LightPt, XMVectorSet(1.0f, 1.0f, -1.0, 0.0f));
+		pCb->EyePt = eyePt;
 	}
 }
 
