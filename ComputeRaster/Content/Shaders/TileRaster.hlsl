@@ -8,12 +8,12 @@
 //--------------------------------------------------------------------------------------
 // Buffers
 //--------------------------------------------------------------------------------------
-Buffer<float4> g_roVertexPos;
 StructuredBuffer<TilePrim> g_roBinPrimitives;
 
 //--------------------------------------------------------------------------------------
 // UAV buffers
 //--------------------------------------------------------------------------------------
+RWStructuredBuffer<float4> g_rwVertexPos;
 RWStructuredBuffer<uint> g_rwTilePrimCount;
 RWStructuredBuffer<TilePrim> g_rwTilePrimitives;
 
@@ -32,7 +32,7 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 	// Load the vertex positions of the triangle
 	const uint baseVIdx = tilePrim.PrimId * 3;
 	[unroll]
-	for (uint i = 0; i < 3; ++i) primVPos[i] = g_roVertexPos[baseVIdx + i];
+	for (uint i = 0; i < 3; ++i) primVPos[i] = g_rwVertexPos[baseVIdx + i];
 
 	// To screen space.
 	ToScreenSpace(primVPos);

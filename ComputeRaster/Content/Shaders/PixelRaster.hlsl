@@ -40,13 +40,13 @@
 //--------------------------------------------------------------------------------------
 // Buffers
 //--------------------------------------------------------------------------------------
-Buffer<float4> g_roVertexPos;
 StructuredBuffer<TilePrim> g_roTilePrimitives;
 #include "DeclareAttributes.hlsli"
 
 //--------------------------------------------------------------------------------------
 // UAV buffers
 //--------------------------------------------------------------------------------------
+RWStructuredBuffer<float4> g_rwVertexPos;
 #include "DeclareTargets.hlsli"
 RWTexture2D<uint> g_rwDepth;
 RWTexture2D<uint> g_rwHiZ;
@@ -62,7 +62,7 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 	// Load the vertex positions of the triangle
 	const uint baseVIdx = tilePrim.PrimId * 3;
 	[unroll]
-	for (uint i = 0; i < 3; ++i) primVPos[i] = g_roVertexPos[baseVIdx + i];
+	for (uint i = 0; i < 3; ++i) primVPos[i] = g_rwVertexPos[baseVIdx + i];
 
 	// To screen space.
 	ToScreenSpace(primVPos);
@@ -104,6 +104,7 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 	CR_OUT_STRUCT_TYPE output = PSMain(input);
 
 	// Mutual exclusive writing
+	[allow_uav_condition]
 	for (i = 0; i < 0xffffffff; ++i)
 	{
 		InterlockedExchange(g_rwDepth[pixelPos], 0xffffffff, depthMin);

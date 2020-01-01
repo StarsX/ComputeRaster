@@ -48,7 +48,7 @@ bool Renderer::Init(const CommandList& commandList, uint32_t width,
 		Util::PipelineLayout pipelineLayout;
 		pipelineLayout.SetRange(0, DescriptorType::CBV, 1, 0);
 		pipelineLayout.SetRange(1, DescriptorType::CBV, 1, 1);
-		N_RETURN(m_softGraphicsPipeline->CreatePixelShaderLayout(pipelineLayout, 2, 1), false);
+		N_RETURN(m_softGraphicsPipeline->CreatePixelShaderLayout(pipelineLayout, true, 1, 2, 1), false);
 	}
 
 	// Create constant buffers

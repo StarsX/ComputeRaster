@@ -129,9 +129,9 @@ bool ConstantBuffer::Create(const Device& device, uint64_t byteWidth, uint32_t n
 }
 
 bool ConstantBuffer::Upload(const CommandList& commandList, Resource& uploader, const void* pData,
-	size_t size, uint32_t cbvIdx, ResourceState srcState, ResourceState dstState)
+	size_t size, uint32_t cbvIndex, ResourceState srcState, ResourceState dstState)
 {
-	const auto offset = m_cbvOffsets.empty() ? 0 : m_cbvOffsets[cbvIdx];
+	const auto offset = m_cbvOffsets.empty() ? 0 : m_cbvOffsets[cbvIndex];
 	SubresourceData subresourceData;
 	subresourceData.pData = pData;
 	subresourceData.RowPitch = static_cast<uint32_t>(size);
@@ -165,7 +165,7 @@ bool ConstantBuffer::Upload(const CommandList& commandList, Resource& uploader, 
 	return true;
 }
 
-void* ConstantBuffer::Map(uint32_t cbvIdx)
+void* ConstantBuffer::Map(uint32_t cbvIndex)
 {
 	if (m_pDataBegin == nullptr)
 	{
@@ -175,7 +175,7 @@ void* ConstantBuffer::Map(uint32_t cbvIdx)
 		V_RETURN(m_resource->Map(0, &readRange, &m_pDataBegin), cerr, false);
 	}
 
-	return &reinterpret_cast<uint8_t*>(m_pDataBegin)[m_cbvOffsets[cbvIdx]];
+	return &reinterpret_cast<uint8_t*>(m_pDataBegin)[m_cbvOffsets[cbvIndex]];
 }
 
 void ConstantBuffer::Unmap()
@@ -192,9 +192,9 @@ const Resource& ConstantBuffer::GetResource() const
 	return m_resource;
 }
 
-Descriptor ConstantBuffer::GetCBV(uint32_t idx) const
+Descriptor ConstantBuffer::GetCBV(uint32_t index) const
 {
-	return m_cbvs.size() > idx ? m_cbvs[idx] : D3D12_DEFAULT;
+	return m_cbvs.size() > index ? m_cbvs[index] : D3D12_DEFAULT;
 }
 
 Descriptor ConstantBuffer::allocateCbvPool(const wchar_t* name)
@@ -241,9 +241,9 @@ const Resource& ResourceBase::GetResource() const
 	return m_resource;
 }
 
-Descriptor ResourceBase::GetSRV(uint32_t idx) const
+Descriptor ResourceBase::GetSRV(uint32_t index) const
 {
-	return m_srvs.size() > idx ? m_srvs[idx] : D3D12_DEFAULT;
+	return m_srvs.size() > index ? m_srvs[index] : D3D12_DEFAULT;
 }
 
 ResourceBarrier ResourceBase::Transition(ResourceState dstState,
@@ -711,19 +711,19 @@ uint32_t Texture2D::GenerateMips(const CommandList& commandList, ResourceBarrier
 	return numBarriers;
 }
 
-Descriptor Texture2D::GetUAV(uint8_t idx) const
+Descriptor Texture2D::GetUAV(uint8_t index) const
 {
-	return m_uavs.size() > idx ? m_uavs[idx] : D3D12_DEFAULT;
+	return m_uavs.size() > index ? m_uavs[index] : D3D12_DEFAULT;
 }
 
-Descriptor Texture2D::GetPackedUAV(uint8_t idx) const
+Descriptor Texture2D::GetPackedUAV(uint8_t index) const
 {
-	return m_packedUavs.size() > idx ? m_packedUavs[idx] : D3D12_DEFAULT;
+	return m_packedUavs.size() > index ? m_packedUavs[index] : D3D12_DEFAULT;
 }
 
-Descriptor Texture2D::GetSRVLevel(uint8_t idx) const
+Descriptor Texture2D::GetSRVLevel(uint8_t level) const
 {
-	return m_srvLevels.size() > idx ? m_srvLevels[idx] : D3D12_DEFAULT;
+	return m_srvLevels.size() > level ? m_srvLevels[level] : D3D12_DEFAULT;
 }
 
 uint32_t Texture2D::GetHeight() const
@@ -844,20 +844,20 @@ bool RenderTarget::CreateArray(const Device& device, uint32_t width, uint32_t he
 	return true;
 }
 
-bool RenderTarget::CreateFromSwapChain(const Device& device, const SwapChain& swapChain, uint32_t bufferIdx)
+bool RenderTarget::CreateFromSwapChain(const Device& device, const SwapChain& swapChain, uint32_t bufferIndex)
 {
 	M_RETURN(!device, cerr, "The device is NULL.", false);
 	setDevice(device);
 	m_rtvPools.clear();
 
-	m_name = L"SwapChain[" + to_wstring(bufferIdx) + L"]";
+	m_name = L"SwapChain[" + to_wstring(bufferIndex) + L"]";
 
 	// Determine initial state
 	m_states.resize(1);
 	m_states[0] = ResourceState::PRESENT;
 
 	// Get resource
-	V_RETURN(swapChain->GetBuffer(bufferIdx, IID_PPV_ARGS(&m_resource)), cerr, false);
+	V_RETURN(swapChain->GetBuffer(bufferIndex, IID_PPV_ARGS(&m_resource)), cerr, false);
 
 	// Create RTV
 	m_rtvs.resize(1);
@@ -1572,19 +1572,19 @@ bool Texture3D::CreateUAVs(Format format, uint8_t numMips, vector<Descriptor>* p
 	return true;
 }
 
-Descriptor Texture3D::GetUAV(uint8_t idx) const
+Descriptor Texture3D::GetUAV(uint8_t index) const
 {
-	return m_uavs.size() > idx ? m_uavs[idx] : D3D12_DEFAULT;
+	return m_uavs.size() > index ? m_uavs[index] : D3D12_DEFAULT;
 }
 
-Descriptor Texture3D::GetPackedUAV(uint8_t idx) const
+Descriptor Texture3D::GetPackedUAV(uint8_t index) const
 {
-	return m_packedUavs.size() > idx ? m_packedUavs[idx] : D3D12_DEFAULT;
+	return m_packedUavs.size() > index ? m_packedUavs[index] : D3D12_DEFAULT;
 }
 
-Descriptor Texture3D::GetSRVLevel(uint8_t idx) const
+Descriptor Texture3D::GetSRVLevel(uint8_t level) const
 {
-	return m_srvLevels.size() > idx ? m_srvLevels[idx] : D3D12_DEFAULT;
+	return m_srvLevels.size() > level ? m_srvLevels[level] : D3D12_DEFAULT;
 }
 
 uint32_t Texture3D::GetDepth() const
@@ -1633,9 +1633,9 @@ bool RawBuffer::Create(const Device& device, uint64_t byteWidth, ResourceFlag re
 }
 
 bool RawBuffer::Upload(const CommandList& commandList, Resource& uploader, const void* pData,
-	size_t size, uint32_t viewIdx, ResourceState dstState)
+	size_t size, uint32_t descriptorIndex, ResourceState dstState)
 {
-	const auto offset = m_srvOffsets.empty() ? 0 : m_srvOffsets[viewIdx];
+	const auto offset = m_srvOffsets.empty() ? 0 : m_srvOffsets[descriptorIndex];
 	D3D12_SUBRESOURCE_DATA subresourceData;
 	subresourceData.pData = pData;
 	subresourceData.RowPitch = static_cast<uint32_t>(size);
@@ -1730,12 +1730,12 @@ bool RawBuffer::CreateUAVs(uint64_t byteWidth, const uint32_t* firstElements,
 	return true;
 }
 
-Descriptor RawBuffer::GetUAV(uint32_t idx) const
+Descriptor RawBuffer::GetUAV(uint32_t index) const
 {
-	return m_uavs.size() > idx ? m_uavs[idx] : D3D12_DEFAULT;
+	return m_uavs.size() > index ? m_uavs[index] : D3D12_DEFAULT;
 }
 
-void* RawBuffer::Map(uint32_t viewIdx)
+void* RawBuffer::Map(uint32_t descriptorIndex)
 {
 	if (m_pDataBegin == nullptr)
 	{
@@ -1744,7 +1744,7 @@ void* RawBuffer::Map(uint32_t viewIdx)
 		V_RETURN(m_resource->Map(0, &readRange, &m_pDataBegin), cerr, false);
 	}
 
-	return &reinterpret_cast<uint8_t*>(m_pDataBegin)[m_srvOffsets[viewIdx]];
+	return &reinterpret_cast<uint8_t*>(m_pDataBegin)[m_srvOffsets[descriptorIndex]];
 }
 
 void RawBuffer::Unmap()
@@ -1983,9 +1983,9 @@ bool TypedBuffer::CreateUAVs(uint32_t numElements, Format format, uint32_t strid
 	return true;
 }
 
-Descriptor TypedBuffer::GetPackedUAV(uint32_t idx) const
+Descriptor TypedBuffer::GetPackedUAV(uint32_t index) const
 {
-	return m_packedUavs.size() > idx ? m_packedUavs[idx] : D3D12_DEFAULT;
+	return m_packedUavs.size() > index ? m_packedUavs[index] : D3D12_DEFAULT;
 }
 
 //--------------------------------------------------------------------------------------
@@ -2052,9 +2052,9 @@ bool VertexBuffer::CreateAsRaw(const Device& device, uint32_t numVertices, uint3
 	return true;
 }
 
-VertexBufferView VertexBuffer::GetVBV(uint32_t idx) const
+VertexBufferView VertexBuffer::GetVBV(uint32_t index) const
 {
-	return m_vbvs.size() > idx ? m_vbvs[idx] : VertexBufferView();
+	return m_vbvs.size() > index ? m_vbvs[index] : VertexBufferView();
 }
 
 //--------------------------------------------------------------------------------------
@@ -2101,7 +2101,7 @@ bool IndexBuffer::Create(const Device& device, uint64_t byteWidth, Format format
 	return true;
 }
 
-IndexBufferView IndexBuffer::GetIBV(uint32_t idx) const
+IndexBufferView IndexBuffer::GetIBV(uint32_t index) const
 {
-	return m_ibvs.size() > idx ? m_ibvs[idx] : IndexBufferView();
+	return m_ibvs.size() > index ? m_ibvs[index] : IndexBufferView();
 }

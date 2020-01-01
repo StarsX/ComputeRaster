@@ -35,23 +35,19 @@ struct RasterInfo
 };
 
 //--------------------------------------------------------------------------------------
-// Buffers
-//--------------------------------------------------------------------------------------
-Buffer<float4> g_roVertexPos;
-
-//--------------------------------------------------------------------------------------
 // UAV buffers
 //--------------------------------------------------------------------------------------
-RWStructuredBuffer<uint> g_rwTilePrimCount : register (u0);
-RWStructuredBuffer<TilePrim> g_rwTilePrimitives : register (u1);
+RWStructuredBuffer<float4> g_rwVertexPos;
+RWStructuredBuffer<uint> g_rwTilePrimCount;
+RWStructuredBuffer<TilePrim> g_rwTilePrimitives;
 
 globallycoherent
-RWTexture2D<uint> g_rwTileZ : register (u2);
+RWTexture2D<uint> g_rwTileZ;
 globallycoherent
-RWTexture2D<uint> g_rwBinZ : register (u3);
+RWTexture2D<uint> g_rwBinZ;
 
-RWStructuredBuffer<uint> g_rwBinPrimCount : register (u4);
-RWStructuredBuffer<TilePrim> g_rwBinPrimitives : register (u5);
+RWStructuredBuffer<uint> g_rwBinPrimCount;
+RWStructuredBuffer<TilePrim> g_rwBinPrimitives;
 
 //--------------------------------------------------------------------------------------
 // Cull a primitive to the view frustum defined in clip space.
@@ -411,7 +407,7 @@ void main(uint DTid : SV_DispatchThreadID)
 	// Load the vertex positions of the triangle
 	const uint baseVIdx = DTid * 3;
 	[unroll]
-	for (uint i = 0; i < 3; ++i) primVPos[i] = g_roVertexPos[baseVIdx + i];
+	for (uint i = 0; i < 3; ++i) primVPos[i] = g_rwVertexPos[baseVIdx + i];
 
 	// Cull the primitive.
 	if (CullPrimitive(primVPos)) return;

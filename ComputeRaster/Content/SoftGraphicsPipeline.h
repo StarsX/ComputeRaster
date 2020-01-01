@@ -23,8 +23,9 @@ public:
 	bool Init(const XUSG::CommandList& commandList, std::vector<XUSG::Resource>& uploaders);
 	bool CreateVertexShaderLayout(XUSG::Util::PipelineLayout& pipelineLayout,
 		uint32_t slotCount = 0, int32_t srvBindingMax = -1, int32_t uavBindingMax = -1);
-	bool CreatePixelShaderLayout(XUSG::Util::PipelineLayout& pipelineLayout, uint32_t slotCount = 0,
-		int32_t cbvBindingMax = -1, int32_t srvBindingMax = -1, int32_t uavBindingMax = -1);
+	bool CreatePixelShaderLayout(XUSG::Util::PipelineLayout& pipelineLayout,
+		bool hasDepth, uint32_t numRTs, uint32_t slotCount = 0, int32_t cbvBindingMax = -1,
+		int32_t srvBindingMax = -1, int32_t uavBindingMax = -1);
 	void SetAttribute(uint32_t i, uint32_t stride, XUSG::Format format, const wchar_t* name = L"Attribute");
 	void SetVertexBuffer(const XUSG::Descriptor& vertexBufferView);
 	void SetIndexBuffer(const XUSG::Descriptor& indexBufferView);
@@ -65,7 +66,6 @@ protected:
 	enum SRVTable : uint8_t
 	{
 		SRV_TABLE_VS,
-		SRV_TABLE_RS,
 		SRV_TABLE_TR,
 		SRV_TABLE_PS,
 
@@ -151,6 +151,7 @@ protected:
 
 	std::vector<AttributeInfo> m_attribInfo;
 	std::vector<XUSG::TypedBuffer> m_vertexAttribs;
+	XUSG::StructuredBuffer	m_vertexCompletions;
 	XUSG::StructuredBuffer	m_vertexPos;
 	XUSG::StructuredBuffer	m_tilePrimCountReset;
 	XUSG::StructuredBuffer	m_binPrimCount;
