@@ -88,12 +88,12 @@ void ComputeAABB(float3x4 primVPos, out uint2 minTile,
 	maxTile >>= tileInfo.SizeLog;
 
 	minTile = max(minTile, 0);
-	maxTile = min(maxTile + 1, tileInfo.Dim - 1);
+	maxTile = min(maxTile + 1, tileInfo.Dim);
 }
 
 //--------------------------------------------------------------------------------------
 // Appends the pointer to the first vertex together with its
-// clipping parameters in clip space at the end of BfTiledCurves.
+// clipping parameters in clip space at the end of uavInfo.rwPrimitives.
 //--------------------------------------------------------------------------------------
 void AppendPrimitive(uint primId, uint tileY, inout uint3 scanLine,
 	uint tileDimX, RasterUavInfo uavInfo)
