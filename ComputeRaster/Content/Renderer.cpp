@@ -31,7 +31,7 @@ bool Renderer::Init(const CommandList& commandList, uint32_t width,
 
 	// Create Color target
 	N_RETURN(m_colorTarget.Create(m_device, width, height, Format::R8G8B8A8_UNORM, 1,
-		ResourceFlag::ALLOW_UNORDERED_ACCESS), false);
+		ResourceFlag::ALLOW_UNORDERED_ACCESS | ResourceFlag::ALLOW_SIMULTANEOUS_ACCESS), false);
 
 	// Create depth buffer
 	N_RETURN(m_softGraphicsPipeline->CreateDepthBuffer(m_depth, width,

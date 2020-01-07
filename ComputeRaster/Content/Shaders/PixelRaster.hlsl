@@ -48,6 +48,8 @@ StructuredBuffer<TilePrim> g_roTilePrimitives;
 //--------------------------------------------------------------------------------------
 RWStructuredBuffer<float4> g_rwVertexPos;
 #include "DeclareTargets.hlsli"
+
+globallycoherent
 RWTexture2D<uint> g_rwDepth;
 RWTexture2D<uint> g_rwHiZ;
 
@@ -87,7 +89,22 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 	uint depthMin;
 	input.Pos.z = w.x * primVPos[0].z + w.y * primVPos[1].z + w.z * primVPos[2].z;
 	const uint depth = asuint(input.Pos.z);
+#if USE_MUTEX > 1
+	// Mutual exclusive writing
+	[allow_uav_condition]
+	for (i = 0; i < 0xffffffff; ++i)
+	{
+		InterlockedExchange(g_rwDepth[pixelPos], 0xffffffff, depthMin);
+		if (depthMin != 0xffffffff)
+		{
+			// Critical section
+			g_rwDepth[pixelPos] = min(depth, depthMin);
+			break;
+		}
+	}
+#else
 	InterlockedMin(g_rwDepth[pixelPos], depth, depthMin);
+#endif
 	if (depth > depthMin) return;
 
 	// Interpolations
@@ -103,6 +120,7 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 #endif
 	CR_OUT_STRUCT_TYPE output = PSMain(input);
 
+#if USE_MUTEX
 	// Mutual exclusive writing
 	[allow_uav_condition]
 	for (i = 0; i < 0xffffffff; ++i)
@@ -120,4 +138,12 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 			break;
 		}
 	}
+#else
+	// This path is not fully tightly sealed, but is fast and works in most cases
+	DeviceMemoryBarrier();
+	if (depth <= g_rwDepth[pixelPos])
+	{
+#include "SetTargets.hlsli"
+	}
+#endif
 }

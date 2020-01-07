@@ -97,7 +97,8 @@ bool SoftGraphicsPipeline::CreatePixelShaderLayout(Util::PipelineLayout& pipelin
 		pipelineLayout.SetRange(slotCount + 1, DescriptorType::SRV, numSRVs,
 			srvBindingMax + 1, 0, DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		pipelineLayout.SetRange(slotCount + 2, DescriptorType::UAV, 1,
-			uavBindingMax + 1, 0, DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
+			uavBindingMax + 1, 0, DescriptorRangeFlag::DESCRIPTORS_VOLATILE |
+			DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		pipelineLayout.SetRange(slotCount + 3, DescriptorType::UAV, hasDepth ? numRTs + 2 : numRTs,
 			uavBindingMax + 2, 0, DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		X_RETURN(m_pipelineLayouts[PIX_RASTER], pipelineLayout.GetPipelineLayout(
@@ -279,7 +280,8 @@ bool SoftGraphicsPipeline::createPipelines()
 	{
 		Util::PipelineLayout utilPipelineLayout;
 		utilPipelineLayout.SetConstants(0, SizeOfInUint32(CBViewPort), 0);
-		utilPipelineLayout.SetRange(1, DescriptorType::UAV, 7, 0, 0,
+		utilPipelineLayout.SetRange(1, DescriptorType::UAV,
+			7, 0, 0, DescriptorRangeFlag::DESCRIPTORS_VOLATILE |
 			DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		X_RETURN(m_pipelineLayouts[BIN_RASTER], utilPipelineLayout.GetPipelineLayout(
 			m_pipelineLayoutCache, PipelineLayoutFlag::NONE, L"BinRasterLayout"), false);
@@ -290,7 +292,8 @@ bool SoftGraphicsPipeline::createPipelines()
 		utilPipelineLayout.SetConstants(0, SizeOfInUint32(CBViewPort), 0);
 		utilPipelineLayout.SetRange(1, DescriptorType::SRV, 1, 0, 0,
 			DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
-		utilPipelineLayout.SetRange(2, DescriptorType::UAV, 5, 0, 0,
+		utilPipelineLayout.SetRange(2, DescriptorType::UAV,
+			5, 0, 0, DescriptorRangeFlag::DESCRIPTORS_VOLATILE |
 			DescriptorRangeFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		X_RETURN(m_pipelineLayouts[TILE_RASTER], utilPipelineLayout.GetPipelineLayout(
 			m_pipelineLayoutCache, PipelineLayoutFlag::NONE, L"TileRasterLayout"), false);
@@ -456,9 +459,35 @@ void SoftGraphicsPipeline::draw(CommandList& commandList, uint32_t num, StageInd
 	};
 	commandList.SetDescriptorPools(static_cast<uint32_t>(size(descriptorPools)), descriptorPools);
 
-	// Set resource barriers
-	// Due to auto promotions, no need to call commandList.Barrier()
+	// Clear depth
+	if (m_pDepth && m_clearDepth != 0xffffffff)
+	{
+		commandList.ClearUnorderedAccessViewUint(m_outTables[m_outTables.size() - 1],
+			m_pDepth->PixelZ.GetUAV(), m_pDepth->PixelZ.GetResource(), &m_clearDepth);
+		commandList.ClearUnorderedAccessViewUint(m_outTables[m_outTables.size() - 2],
+			m_pDepth->TileZ.GetUAV(), m_pDepth->TileZ.GetResource(), &m_clearDepth);
+#if USE_TRIPPLE_RASTER
+		commandList.ClearUnorderedAccessViewUint(m_outTables[m_outTables.size() - 3],
+			m_pDepth->BinZ.GetUAV(), m_pDepth->BinZ.GetResource(), &m_clearDepth);
+#endif
+		m_clearDepth = 0xffffffff;
+	}
+
+	// Set resource barriers and clear
 	ResourceBarrier barrier;
+	// Due to auto promotions, no need to call commandList.Barrier()
+	const uint32_t clearCount = static_cast<uint32_t>(m_clears.size());
+	for (auto i = 0u; i < clearCount; ++i)
+	{
+		m_pColorTarget[i].SetBarrier(&barrier, ResourceState::UNORDERED_ACCESS);
+		if (m_clears[i].IsUint)
+			commandList.ClearUnorderedAccessViewUint(m_outTables[i], m_clears[i].pTarget->GetUAV(),
+				m_clears[i].pTarget->GetResource(), m_clears[i].ClearUint);
+		else commandList.ClearUnorderedAccessViewFloat(m_outTables[i], m_clears[i].pTarget->GetUAV(),
+			m_clears[i].pTarget->GetResource(), m_clears[i].ClearFloat);
+	}
+	m_clears.clear();
+
 	m_tilePrimCount.SetBarrier(&barrier, ResourceState::COPY_DEST);
 #if USE_TRIPPLE_RASTER
 	m_binPrimCount.SetBarrier(&barrier, ResourceState::COPY_DEST);
@@ -509,7 +538,7 @@ void SoftGraphicsPipeline::rasterizer(CommandList& commandList, uint32_t numTria
 #endif
 
 	// Set resource barriers
-	vector<ResourceBarrier> barriers(m_vertexAttribs.size() + 3);
+	vector<ResourceBarrier> barriers(m_vertexAttribs.size() + 2);
 	auto numBarriers = m_tilePrimCount.SetBarrier(barriers.data(), ResourceState::UNORDERED_ACCESS);
 #if USE_TRIPPLE_RASTER
 	numBarriers = m_binPrimCount.SetBarrier(barriers.data(), ResourceState::UNORDERED_ACCESS, numBarriers);
@@ -520,15 +549,6 @@ void SoftGraphicsPipeline::rasterizer(CommandList& commandList, uint32_t numTria
 	m_tilePrimitives.SetBarrier(barriers.data(), ResourceState::UNORDERED_ACCESS);
 #if USE_TRIPPLE_RASTER
 	m_binPrimitives.SetBarrier(barriers.data(), ResourceState::UNORDERED_ACCESS);
-#endif
-
-	if (m_pDepth && m_clearDepth != 0xffffffff)
-		commandList.ClearUnorderedAccessViewUint(m_outTables[m_outTables.size() - 2],
-			m_pDepth->TileZ.GetUAV(), m_pDepth->TileZ.GetResource(), &m_clearDepth);
-#if USE_TRIPPLE_RASTER
-	if (m_pDepth && m_clearDepth != 0xffffffff)
-		commandList.ClearUnorderedAccessViewUint(m_outTables[m_outTables.size() - 3],
-			m_pDepth->BinZ.GetUAV(), m_pDepth->BinZ.GetResource(), &m_clearDepth);
 #endif
 
 	// Bin raster
@@ -571,29 +591,9 @@ void SoftGraphicsPipeline::rasterizer(CommandList& commandList, uint32_t numTria
 	// Set resource barriers
 	numBarriers = m_tilePrimCount.SetBarrier(barriers.data(), ResourceState::INDIRECT_ARGUMENT);
 	numBarriers = m_tilePrimitives.SetBarrier(barriers.data(), ResourceState::NON_PIXEL_SHADER_RESOURCE, numBarriers);
-	numBarriers = m_pColorTarget->SetBarrier(barriers.data(), ResourceState::UNORDERED_ACCESS, numBarriers);
 	for (auto& attrib : m_vertexAttribs)
 		numBarriers = attrib.SetBarrier(barriers.data(), ResourceState::NON_PIXEL_SHADER_RESOURCE, numBarriers);
 	commandList.Barrier(numBarriers, barriers.data());
-
-	// Clear
-	const uint32_t clearCount = static_cast<uint32_t>(m_clears.size());
-	for (auto i = 0u; i < clearCount; ++i)
-	{
-		if (m_clears[i].IsUint)
-			commandList.ClearUnorderedAccessViewUint(m_outTables[i], m_clears[i].pTarget->GetUAV(),
-				m_clears[i].pTarget->GetResource(), m_clears[i].ClearUint);
-		else commandList.ClearUnorderedAccessViewFloat(m_outTables[i], m_clears[i].pTarget->GetUAV(),
-			m_clears[i].pTarget->GetResource(), m_clears[i].ClearFloat);
-	}
-	m_clears.clear();
-
-	if (m_pDepth && m_clearDepth != 0xffffffff)
-	{
-		commandList.ClearUnorderedAccessViewUint(m_outTables[m_outTables.size() - 1],
-			m_pDepth->PixelZ.GetUAV(), m_pDepth->PixelZ.GetResource(), &m_clearDepth);
-		m_clearDepth = 0xffffffff;
-	}
 
 	// Pixel raster
 	{
