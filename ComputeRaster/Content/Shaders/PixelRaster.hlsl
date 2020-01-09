@@ -37,6 +37,8 @@
 #define DEFINED_TARGET(n) (defined(CR_TARGET_TYPE##n) && defined(CR_TARGET##n))
 #define DECLARE_TARGET(n) RWTexture2D<CR_TARGET_TYPE##n> g_rwRenderTarget##n
 
+#define USE_MUTEX 1
+
 //--------------------------------------------------------------------------------------
 // Buffers
 //--------------------------------------------------------------------------------------
@@ -92,15 +94,12 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 #if USE_MUTEX > 1
 	// Mutual exclusive writing
 	[allow_uav_condition]
-	for (i = 0; i < 0xffffffff; ++i)
+	for (i = 0, depthMin = 0xffffffff; i < 0xffffffff && depthMin == 0xffffffff; ++i)
 	{
 		InterlockedExchange(g_rwDepth[pixelPos], 0xffffffff, depthMin);
 		if (depthMin != 0xffffffff)
-		{
 			// Critical section
 			g_rwDepth[pixelPos] = min(depth, depthMin);
-			break;
-		}
 	}
 #else
 	InterlockedMin(g_rwDepth[pixelPos], depth, depthMin);
@@ -123,7 +122,7 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 #if USE_MUTEX
 	// Mutual exclusive writing
 	[allow_uav_condition]
-	for (i = 0; i < 0xffffffff; ++i)
+	for (i = 0, depthMin = 0xffffffff; i < 0xffffffff && depthMin == 0xffffffff; ++i)
 	{
 		InterlockedExchange(g_rwDepth[pixelPos], 0xffffffff, depthMin);
 		if (depthMin != 0xffffffff)
@@ -135,13 +134,12 @@ void main(uint2 GTid : SV_GroupThreadID, uint Gid : SV_GroupID)//, uint GTidx : 
 #include "SetTargets.hlsli"
 			}
 			g_rwDepth[pixelPos] = min(depth, depthMin);
-			break;
 		}
 	}
 #else
-	// This path is not fully tightly sealed, but is fast and works in most cases
+	// This path is not fully watertight, but is faster and works in most cases
 	DeviceMemoryBarrier();
-	if (depth <= g_rwDepth[pixelPos])
+	if (depth == g_rwDepth[pixelPos])
 	{
 #include "SetTargets.hlsli"
 	}
