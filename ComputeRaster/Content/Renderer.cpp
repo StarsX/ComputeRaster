@@ -140,8 +140,8 @@ void Renderer::UpdateFrame(uint32_t frameIndex, CXMMATRIX view,
 			XMFLOAT3 EyePt;
 		};
 		const auto pCb = reinterpret_cast<CBLighting*>(m_cbLighting.Map(frameIndex));
-		pCb->AmbientColor = XMFLOAT4(0.6f, 0.7f, 1.0f, 0.2f);
-		pCb->LightColor = XMFLOAT4(1.0f, 0.7f, 0.5f, static_cast<float>(sin(time)) * 0.3f + 0.7f);
+		pCb->AmbientColor = XMFLOAT4(0.6f, 0.7f, 1.0f, 2.4f);
+		pCb->LightColor = XMFLOAT4(1.0f, 0.7f, 0.5f, (static_cast<float>(sin(time)) * 0.3f + 0.7f) * 3.14f);
 		XMStoreFloat4(&pCb->LightPt, XMVectorSet(1.0f, 1.0f, -1.0, 0.0f));
 		pCb->EyePt = eyePt;
 	}

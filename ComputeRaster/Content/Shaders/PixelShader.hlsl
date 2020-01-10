@@ -46,5 +46,8 @@ float4 main(PSIn input) : SV_TARGET
 	const float3 spec = 3.14 * 0.08 * pow(NoH, 64.0) * g_light;
 	const float3 ambient = ambientAmt * g_ambient;
 
-	return float4(g_baseColor * (diffuse + ambient) + spec, 1.0);
+	float3 result = g_baseColor * (diffuse + ambient) + spec;
+	result /= result + 1.0;
+
+	return float4(result, 1.0);
 }
