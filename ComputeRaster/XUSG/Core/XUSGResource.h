@@ -140,7 +140,6 @@ namespace XUSG
 		std::vector<Descriptor>	m_uavs;
 		std::vector<Descriptor>	m_packedUavs;
 		std::vector<Descriptor>	m_srvLevels;
-		Resource m_counter;
 	};
 
 	//--------------------------------------------------------------------------------------
@@ -264,7 +263,6 @@ namespace XUSG
 		std::vector<Descriptor>	m_uavs;
 		std::vector<Descriptor>	m_packedUavs;
 		std::vector<Descriptor>	m_srvLevels;
-		Resource m_counter;
 	};
 
 	//--------------------------------------------------------------------------------------
@@ -290,7 +288,8 @@ namespace XUSG
 
 		Descriptor GetUAV(uint32_t index = 0) const;
 
-		void* Map(uint32_t descriptorIndex = 0);
+		void* Map(uint32_t descriptorIndex = 0, size_t readBegin = 0, size_t readEnd = 0);
+		void* Map(const Range* pReadRange, uint32_t descriptorIndex = 0);
 		void Unmap();
 
 	protected:
@@ -299,7 +298,6 @@ namespace XUSG
 
 		std::vector<Descriptor>	m_uavs;
 		std::vector<uint32_t>	m_srvOffsets;
-		Resource m_counter;
 
 		void* m_pDataBegin;
 	};
@@ -318,12 +316,19 @@ namespace XUSG
 			ResourceFlag resourceFlags = ResourceFlag::NONE, MemoryType memoryType = MemoryType::DEFAULT,
 			uint32_t numSRVs = 1, const uint32_t* firstSRVElements = nullptr,
 			uint32_t numUAVs = 1, const uint32_t* firstUAVElements = nullptr,
-			const wchar_t* name = nullptr);
+			const wchar_t* name = nullptr, const uint64_t* counterOffsetsInBytes = nullptr);
 
 		bool CreateSRVs(uint32_t numElements, uint32_t stride,
 			const uint32_t* firstElements = nullptr, uint32_t numDescriptors = 1);
 		bool CreateUAVs(uint32_t numElements, uint32_t stride,
-			const uint32_t* firstElements = nullptr, uint32_t numDescriptors = 1);
+			const uint32_t* firstElements = nullptr, uint32_t numDescriptors = 1,
+			const uint64_t* counterOffsetsInBytes = nullptr);
+
+		void SetCounter(const Resource& counter);
+		Resource& GetCounter();
+
+	protected:
+		Resource m_counter;
 	};
 
 	//--------------------------------------------------------------------------------------

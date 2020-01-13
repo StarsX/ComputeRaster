@@ -437,6 +437,7 @@ namespace XUSG
 	using SubresourceData = D3D12_SUBRESOURCE_DATA;
 	using TextureCopyLocation = CD3DX12_TEXTURE_COPY_LOCATION;
 	using Viewport = CD3DX12_VIEWPORT;
+	using Range = CD3DX12_RANGE;
 	using RectRange = CD3DX12_RECT;
 	using BoxRange = CD3DX12_BOX;
 	using TiledResourceCoord = CD3DX12_TILED_RESOURCE_COORDINATE;

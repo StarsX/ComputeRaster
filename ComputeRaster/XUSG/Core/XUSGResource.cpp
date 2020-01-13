@@ -171,7 +171,7 @@ void* ConstantBuffer::Map(uint32_t cbvIndex)
 	{
 		// Map and initialize the constant buffer. We don't unmap this until the
 		// app closes. Keeping things mapped for the lifetime of the resource is okay.
-		CD3DX12_RANGE readRange(0, 0);	// We do not intend to read from this resource on the CPU.
+		Range readRange(0, 0);	// We do not intend to read from this resource on the CPU.
 		V_RETURN(m_resource->Map(0, &readRange, &m_pDataBegin), cerr, false);
 	}
 
@@ -308,7 +308,6 @@ Descriptor ResourceBase::allocateSrvUavPool()
 
 Texture2D::Texture2D() :
 	ResourceBase(),
-	m_counter(nullptr),
 	m_uavs(0),
 	m_srvLevels(0)
 {
@@ -581,7 +580,7 @@ bool Texture2D::CreateUAVs(uint32_t arraySize, Format format, uint8_t numMips, v
 		// Create an unordered access view
 		descriptor = allocateSrvUavPool();
 		N_RETURN(descriptor.ptr, false);
-		m_device->CreateUnorderedAccessView(m_resource.get(), m_counter.get(), &desc, descriptor);
+		m_device->CreateUnorderedAccessView(m_resource.get(), nullptr, &desc, descriptor);
 	}
 
 	return true;
@@ -1419,7 +1418,6 @@ Descriptor DepthStencil::allocateDsvPool()
 
 Texture3D::Texture3D() :
 	ResourceBase(),
-	m_counter(nullptr),
 	m_uavs(0),
 	m_srvLevels(0)
 {
@@ -1566,7 +1564,7 @@ bool Texture3D::CreateUAVs(Format format, uint8_t numMips, vector<Descriptor>* p
 		// Create an unordered access view
 		descriptor = allocateSrvUavPool();
 		N_RETURN(descriptor.ptr, false);
-		m_device->CreateUnorderedAccessView(m_resource.get(), m_counter.get(), &desc, descriptor);
+		m_device->CreateUnorderedAccessView(m_resource.get(), nullptr, &desc, descriptor);
 	}
 
 	return true;
@@ -1598,7 +1596,6 @@ uint32_t Texture3D::GetDepth() const
 
 RawBuffer::RawBuffer() :
 	ResourceBase(),
-	m_counter(nullptr),
 	m_uavs(0),
 	m_srvOffsets(0),
 	m_pDataBegin(nullptr)
@@ -1724,7 +1721,7 @@ bool RawBuffer::CreateUAVs(uint64_t byteWidth, const uint32_t* firstElements,
 		// Create an unordered access view
 		m_uavs[i] = allocateSrvUavPool();
 		N_RETURN(m_uavs[i].ptr, false);
-		m_device->CreateUnorderedAccessView(m_resource.get(), m_counter.get(), &desc, m_uavs[i]);
+		m_device->CreateUnorderedAccessView(m_resource.get(), nullptr, &desc, m_uavs[i]);
 	}
 
 	return true;
@@ -1735,16 +1732,20 @@ Descriptor RawBuffer::GetUAV(uint32_t index) const
 	return m_uavs.size() > index ? m_uavs[index] : D3D12_DEFAULT;
 }
 
-void* RawBuffer::Map(uint32_t descriptorIndex)
+void* RawBuffer::Map(uint32_t descriptorIndex, size_t readBegin, size_t readEnd)
 {
-	if (m_pDataBegin == nullptr)
-	{
-		// Map and initialize the buffer.
-		CD3DX12_RANGE readRange(0, 0);	// We do not intend to read from this resource on the CPU.
-		V_RETURN(m_resource->Map(0, &readRange, &m_pDataBegin), cerr, false);
-	}
+	return Map(&Range(readBegin, readEnd), descriptorIndex);
+}
 
-	return &reinterpret_cast<uint8_t*>(m_pDataBegin)[m_srvOffsets[descriptorIndex]];
+void* RawBuffer::Map(const Range* pReadRange, uint32_t descriptorIndex)
+{
+	// Map and initialize the buffer.
+	if (m_pDataBegin == nullptr)
+		V_RETURN(m_resource->Map(0, pReadRange, &m_pDataBegin), cerr, false);
+
+	const auto offset = !descriptorIndex ? 0 : m_srvOffsets[descriptorIndex];
+
+	return &reinterpret_cast<uint8_t*>(m_pDataBegin)[offset];
 }
 
 void RawBuffer::Unmap()
@@ -1807,7 +1808,7 @@ StructuredBuffer::~StructuredBuffer()
 
 bool StructuredBuffer::Create(const Device& device, uint32_t numElements, uint32_t stride,
 	ResourceFlag resourceFlags, MemoryType memoryType, uint32_t numSRVs, const uint32_t* firstSRVElements,
-	uint32_t numUAVs, const uint32_t* firstUAVElements, const wchar_t* name)
+	uint32_t numUAVs, const uint32_t* firstUAVElements, const wchar_t* name, const uint64_t* counterOffsetsInBytes)
 {
 	const auto hasSRV = (resourceFlags & ResourceFlag::DENY_SHADER_RESOURCE) == ResourceFlag::NONE;
 	const bool hasUAV = (resourceFlags & ResourceFlag::ALLOW_UNORDERED_ACCESS) == ResourceFlag::ALLOW_UNORDERED_ACCESS;
@@ -1823,7 +1824,7 @@ bool StructuredBuffer::Create(const Device& device, uint32_t numElements, uint32
 	if (numSRVs > 0) N_RETURN(CreateSRVs(numElements, stride, firstSRVElements, numSRVs), false);
 
 	// Create UAV
-	if (numUAVs > 0) N_RETURN(CreateUAVs(numElements, stride, firstUAVElements, numUAVs), false);
+	if (numUAVs > 0) N_RETURN(CreateUAVs(numElements, stride, firstUAVElements, numUAVs, counterOffsetsInBytes), false);
 
 	return true;
 }
@@ -1858,7 +1859,8 @@ bool StructuredBuffer::CreateSRVs(uint32_t numElements, uint32_t stride,
 }
 
 bool StructuredBuffer::CreateUAVs(uint32_t numElements, uint32_t stride,
-	const uint32_t* firstElements, uint32_t numDescriptors)
+	const uint32_t* firstElements, uint32_t numDescriptors,
+	const uint64_t* counterOffsetsInBytes)
 {
 	D3D12_UNORDERED_ACCESS_VIEW_DESC desc = {};
 	desc.Format = m_resource->GetDesc().Format;
@@ -1872,6 +1874,7 @@ bool StructuredBuffer::CreateUAVs(uint32_t numElements, uint32_t stride,
 		desc.Buffer.FirstElement = firstElement;
 		desc.Buffer.NumElements = (!firstElements || i + 1 >= numDescriptors ?
 			numElements : firstElements[i + 1]) - firstElement;
+		desc.Buffer.CounterOffsetInBytes = counterOffsetsInBytes ? counterOffsetsInBytes[i] : 0;
 
 		// Create an unordered access view
 		m_uavs[i] = allocateSrvUavPool();
@@ -1880,6 +1883,16 @@ bool StructuredBuffer::CreateUAVs(uint32_t numElements, uint32_t stride,
 	}
 
 	return true;
+}
+
+void StructuredBuffer::SetCounter(const Resource& counter)
+{
+	m_counter = counter;
+}
+
+Resource& StructuredBuffer::GetCounter()
+{
+	return m_counter;
 }
 
 //--------------------------------------------------------------------------------------
@@ -1977,7 +1990,7 @@ bool TypedBuffer::CreateUAVs(uint32_t numElements, Format format, uint32_t strid
 		// Create an unordered access view
 		pUavs->at(i) = allocateSrvUavPool();
 		N_RETURN(pUavs->at(i).ptr, false);
-		m_device->CreateUnorderedAccessView(m_resource.get(), m_counter.get(), &desc, pUavs->at(i));
+		m_device->CreateUnorderedAccessView(m_resource.get(), nullptr, &desc, pUavs->at(i));
 	}
 
 	return true;
