@@ -19,6 +19,7 @@ namespace XUSG
 		uint32_t GetResourceBindingPointByName(const char* name, uint32_t defaultVal = UINT32_MAX) const;
 
 	protected:
-		Shader::Reflection m_reflection;
+		Shader::Reflection		m_shaderReflection;
+		Shader::LibReflection	m_libraryReflection;
 	};
 }

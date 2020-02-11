@@ -195,7 +195,7 @@ static DxcCreateInstanceProc GetDxcCreateInstanceProc(const wchar_t* module)
 }
 
 Reflector::Reflector() :
-	m_reflection(nullptr)
+	m_shaderReflection(nullptr)
 {
 }
 
@@ -223,8 +223,9 @@ bool Reflector::SetShader(const Blob& shader)
 
 		reflection->Load(blob.get());
 		V_RETURN(reflection->FindFirstPartKind(DXIL_FOURCC('D', 'X', 'I', 'L'), &shaderIdx), cerr, false);
-		V_RETURN(reflection->GetPartReflection(shaderIdx,
-			IID_PPV_ARGS(&m_reflection)), cerr, false);
+		const auto hrShader = reflection->GetPartReflection(shaderIdx, IID_PPV_ARGS(&m_shaderReflection));
+		const auto hrLib = reflection->GetPartReflection(shaderIdx, IID_PPV_ARGS(&m_libraryReflection));
+		F_RETURN(FAILED(hrShader) && FAILED(hrLib), cerr, hrShader, false);
 
 		// Validate DXIL
 		DxcCreateInstance = GetDxcCreateInstanceProc(L"dxil.dll");
@@ -254,20 +255,44 @@ bool Reflector::SetShader(const Blob& shader)
 		}
 	}
 	else V_RETURN(D3DReflect(shader->GetBufferPointer(), shader->GetBufferSize(),
-		IID_PPV_ARGS(&m_reflection)), cerr, false);
+		IID_PPV_ARGS(&m_shaderReflection)), cerr, false);
 
 	return true;
 }
 
 bool Reflector::IsValid() const
 {
-	return m_reflection;
+	return m_shaderReflection || m_libraryReflection;
 }
 
 uint32_t Reflector::GetResourceBindingPointByName(const char* name, uint32_t defaultVal) const
 {
 	D3D12_SHADER_INPUT_BIND_DESC desc;
-	const auto hr = m_reflection->GetResourceBindingDescByName(name, &desc);
 
-	return SUCCEEDED(hr) ? desc.BindPoint : defaultVal;
+	assert(IsValid());
+	if (m_shaderReflection)
+	{
+		const auto hr = m_shaderReflection->GetResourceBindingDescByName(name, &desc);
+
+		return SUCCEEDED(hr) ? desc.BindPoint : defaultVal;
+	}
+	else
+	{
+		D3D12_LIBRARY_DESC libDesc;
+		auto bindPoint = defaultVal;
+
+		const auto hr = m_libraryReflection->GetDesc(&libDesc);
+		for (auto i = 0u; i < libDesc.FunctionCount; ++i)
+		{
+			const auto funcReflection = m_libraryReflection->GetFunctionByIndex(i);
+			const auto hr = m_shaderReflection->GetResourceBindingDescByName(name, &desc);
+			if (SUCCEEDED(hr))
+			{
+				bindPoint = desc.BindPoint;
+				break;
+			}
+		}
+
+		return bindPoint;
+	}
 }

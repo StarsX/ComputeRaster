@@ -573,6 +573,7 @@ namespace XUSG
 	{
 		using ByteCode = CD3DX12_SHADER_BYTECODE;
 		using Reflection = com_ptr<ID3D12ShaderReflection>;
+		using LibReflection = com_ptr<ID3D12LibraryReflection>;
 	}
 
 	// Graphics pipelines related
