@@ -5,6 +5,7 @@
 #include "XUSGReflector.h"
 #include "dxcapi.h"
 #include <Psapi.h>
+#include <map>
 
 using namespace std;
 using namespace XUSG;
@@ -134,22 +135,20 @@ static bool IsDxil(LPCVOID pSrcData, SIZE_T SrcDataSize)
 	return false;
 }
 
-static DxcCreateInstanceProc GetDxcCreateInstanceProc()
+static DxcCreateInstanceProc GetDxcCreateInstanceProc(const wchar_t* module)
 {
-	static auto isGot = false;
-	static DxcCreateInstanceProc pfnDxcCreateInstance = nullptr;
+	static map<wstring, DxcCreateInstanceProc> pfnDxcCreateInstances;
+	auto pfnDxcCreateInstance = pfnDxcCreateInstances[module];
 
-	if (!isGot)
+	if (!pfnDxcCreateInstance)
 	{
-		isGot = true;
-
 		const auto hProcess = GetCurrentProcess();
 		HMODULE hMods[1024];
-		unsigned long cbNeeded;
+		DWORD cbNeeded;
 
-		bool isDXCompilerLoaded = false;
+		auto isModuleLoaded = false;
 
-		// First search if dxcompiler.dll is loaded
+		// First search if the module is loaded
 		if (EnumProcessModules(hProcess, hMods, sizeof(hMods), &cbNeeded))
 		{
 			for (auto i = 0u; i < cbNeeded / sizeof(HMODULE); ++i)
@@ -165,28 +164,31 @@ static DxcCreateInstanceProc GetDxcCreateInstanceProc()
 						p = szModName;
 						--p;
 					}
-					if (_wcsicmp(p + 1, L"dxcompiler.dll") == 0)
+					if (_wcsicmp(p + 1, module) == 0)
 					{
 						pfnDxcCreateInstance = reinterpret_cast<DxcCreateInstanceProc>(GetProcAddress(hMods[i], "DxcCreateInstance"));
-						isDXCompilerLoaded = true;
+						isModuleLoaded = true;
 						break;
 					}
 				}
 			}
 		}
 
-		// If dxcompiler.dll is not loaded, try some default candidates
-		if (!isDXCompilerLoaded)
+		// If the module is not loaded, try some default candidates
+		if (!isModuleLoaded)
 		{
-			static const wchar_t* modules[] = { L"dxcompiler.dll" };
+			const wchar_t* modules[] = { module };
 
 			for (size_t i = 0; i < sizeof(modules) / sizeof(modules[0]); i++)
 			{
 				const auto hModule = LoadLibrary(modules[i]);
+				isModuleLoaded = hModule;
 				pfnDxcCreateInstance = reinterpret_cast<DxcCreateInstanceProc>(GetProcAddress(hModule, "DxcCreateInstance"));
 				if (pfnDxcCreateInstance) break;
 			}
 		}
+
+		if (!isModuleLoaded) wcout << module << L" is not found." << endl;
 	}
 
 	return pfnDxcCreateInstance;
@@ -205,7 +207,7 @@ bool Reflector::SetShader(const Blob& shader)
 {
 	if (IsDxil(shader->GetBufferPointer(), shader->GetBufferSize()))
 	{
-		const auto DxcCreateInstance = GetDxcCreateInstanceProc();
+		auto DxcCreateInstance = GetDxcCreateInstanceProc(L"dxcompiler.dll");
 		if (!DxcCreateInstance) return false;
 
 		com_ptr<IDxcLibrary> library = nullptr;;
@@ -223,6 +225,33 @@ bool Reflector::SetShader(const Blob& shader)
 		V_RETURN(reflection->FindFirstPartKind(DXIL_FOURCC('D', 'X', 'I', 'L'), &shaderIdx), cerr, false);
 		V_RETURN(reflection->GetPartReflection(shaderIdx,
 			IID_PPV_ARGS(&m_reflection)), cerr, false);
+
+		// Validate DXIL
+		DxcCreateInstance = GetDxcCreateInstanceProc(L"dxil.dll");
+		if (DxcCreateInstance)
+		{
+			com_ptr<IDxcValidator> validator;
+			V_RETURN(DxcCreateInstance(CLSID_DxcValidator, IID_PPV_ARGS(&validator)), cerr, false);
+
+			com_ptr<IDxcOperationResult> result;
+			V_RETURN(validator->Validate(blob.get(), DxcValidatorFlags_InPlaceEdit, &result), cerr, false);
+
+			HRESULT hr;
+			result->GetStatus(&hr);
+			if (FAILED(hr))
+			{
+				cout << "The DXIL container failed validation." << endl;
+
+				com_ptr<IDxcBlobEncoding> printBlob, printBlobUtf8;
+				V_RETURN(result->GetErrorBuffer(&printBlob), cerr, false);
+				V_RETURN(library->GetBlobAsUtf8(printBlob.get(), printBlobUtf8.GetAddressOf()), cerr, false);
+
+				string error;
+				if (printBlobUtf8) error = reinterpret_cast<const char*>(printBlobUtf8->GetBufferPointer());
+
+				cout << "Error:" << endl << error << endl;
+			}
+		}
 	}
 	else V_RETURN(D3DReflect(shader->GetBufferPointer(), shader->GetBufferSize(),
 		IID_PPV_ARGS(&m_reflection)), cerr, false);
