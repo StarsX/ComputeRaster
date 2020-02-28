@@ -95,16 +95,19 @@ DescriptorTableCache::DescriptorTableCache() :
 {
 	// Sampler presets
 	m_pfnSamplers[SamplerPreset::POINT_WRAP] = SamplerPointWrap;
+	m_pfnSamplers[SamplerPreset::POINT_MIRROR] = SamplerPointMirror;
 	m_pfnSamplers[SamplerPreset::POINT_CLAMP] = SamplerPointClamp;
 	m_pfnSamplers[SamplerPreset::POINT_BORDER] = SamplerPointBorder;
 	m_pfnSamplers[SamplerPreset::POINT_LESS_EQUAL] = SamplerPointLessEqual;
 
 	m_pfnSamplers[SamplerPreset::LINEAR_WRAP] = SamplerLinearWrap;
+	m_pfnSamplers[SamplerPreset::LINEAR_MIRROR] = SamplerLinearMirror;
 	m_pfnSamplers[SamplerPreset::LINEAR_CLAMP] = SamplerLinearClamp;
 	m_pfnSamplers[SamplerPreset::LINEAR_BORDER] = SamplerLinearBorder;
 	m_pfnSamplers[SamplerPreset::LINEAR_LESS_EQUAL] = SamplerLinearLessEqual;
 
 	m_pfnSamplers[SamplerPreset::ANISOTROPIC_WRAP] = SamplerAnisotropicWrap;
+	m_pfnSamplers[SamplerPreset::ANISOTROPIC_MIRROR] = SamplerAnisotropicMirror;
 	m_pfnSamplers[SamplerPreset::ANISOTROPIC_CLAMP] = SamplerAnisotropicClamp;
 	m_pfnSamplers[SamplerPreset::ANISOTROPIC_BORDER] = SamplerAnisotropicBorder;
 	m_pfnSamplers[SamplerPreset::ANISOTROPIC_LESS_EQUAL] = SamplerAnisotropicLessEqual;

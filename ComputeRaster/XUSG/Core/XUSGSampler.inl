@@ -20,6 +20,20 @@ namespace XUSG
 		return sampler;
 	}
 
+	Sampler SamplerPointMirror()
+	{
+		Sampler sampler = {};
+		sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+		sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
+		sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
+		sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
+		sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+		sampler.MinLOD = 0.0f;
+		sampler.MaxLOD = D3D12_FLOAT32_MAX;
+
+		return sampler;
+	}
+
 	Sampler SamplerPointClamp()
 	{
 		Sampler sampler = {};
@@ -80,6 +94,20 @@ namespace XUSG
 		return sampler;
 	}
 
+	Sampler SamplerLinearMirror()
+	{
+		Sampler sampler = {};
+		sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+		sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
+		sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
+		sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
+		sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+		sampler.MinLOD = 0.0f;
+		sampler.MaxLOD = D3D12_FLOAT32_MAX;
+
+		return sampler;
+	}
+
 	Sampler SamplerLinearClamp()
 	{
 		Sampler sampler = {};
@@ -133,6 +161,21 @@ namespace XUSG
 		sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 		sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 		sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		sampler.MaxAnisotropy = 16;
+		sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+		sampler.MinLOD = 0.0f;
+		sampler.MaxLOD = D3D12_FLOAT32_MAX;
+
+		return sampler;
+	}
+
+	Sampler SamplerAnisotropicMirror()
+	{
+		Sampler sampler = {};
+		sampler.Filter = D3D12_FILTER_ANISOTROPIC;
+		sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
+		sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
+		sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
 		sampler.MaxAnisotropy = 16;
 		sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
 		sampler.MinLOD = 0.0f;
