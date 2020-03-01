@@ -124,6 +124,7 @@ PipelineCache::PipelineCache() :
 	// Blend states
 	m_pfnBlends[BlendPreset::DEFAULT_OPAQUE] = DefaultOpaque;
 	m_pfnBlends[BlendPreset::PREMULTIPLITED] = Premultiplied;
+	m_pfnBlends[BlendPreset::ADDTIVE] = Additive;
 	m_pfnBlends[BlendPreset::NON_PRE_MUL] = NonPremultiplied;
 	m_pfnBlends[BlendPreset::NON_PREMUL_RT0] = NonPremultipliedRT0;
 	m_pfnBlends[BlendPreset::ALPHA_TO_COVERAGE] = AlphaToCoverage;
