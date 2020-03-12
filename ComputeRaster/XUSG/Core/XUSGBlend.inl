@@ -103,6 +103,7 @@ namespace XUSG
 			desc.LogicOp = D3D12_LOGIC_OP_NOOP;
 			desc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
+			// Default
 			D3D12_RENDER_TARGET_BLEND_DESC descDefault;
 			descDefault.BlendEnable = FALSE;
 			descDefault.LogicOpEnable = FALSE;
@@ -251,7 +252,7 @@ namespace XUSG
 			auto& desc0 = blend->RenderTarget[0];
 			desc0.BlendEnable = TRUE;
 			desc0.LogicOpEnable = FALSE;
-			desc0.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+			desc0.SrcBlend = D3D12_BLEND_ONE; // Premultiplied for flexibility
 			desc0.DestBlend = D3D12_BLEND_ONE;
 			desc0.BlendOp = D3D12_BLEND_OP_ADD;
 			desc0.SrcBlendAlpha = D3D12_BLEND_ONE;
@@ -273,7 +274,7 @@ namespace XUSG
 			desc1.LogicOp = D3D12_LOGIC_OP_NOOP;
 			desc1.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
-			// Production
+			// Default
 			D3D12_RENDER_TARGET_BLEND_DESC descDefault;
 			descDefault.BlendEnable = FALSE;
 			descDefault.LogicOpEnable = FALSE;
