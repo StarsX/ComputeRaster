@@ -252,7 +252,7 @@ namespace XUSG
 			auto& desc0 = blend->RenderTarget[0];
 			desc0.BlendEnable = TRUE;
 			desc0.LogicOpEnable = FALSE;
-			desc0.SrcBlend = D3D12_BLEND_ONE; // Premultiplied for flexibility
+			desc0.SrcBlend = D3D12_BLEND_SRC_ALPHA;
 			desc0.DestBlend = D3D12_BLEND_ONE;
 			desc0.BlendOp = D3D12_BLEND_OP_ADD;
 			desc0.SrcBlendAlpha = D3D12_BLEND_ONE;
@@ -266,10 +266,10 @@ namespace XUSG
 			desc1.BlendEnable = TRUE;
 			desc1.LogicOpEnable = FALSE;
 			desc1.SrcBlend = D3D12_BLEND_ZERO;
-			desc1.DestBlend = D3D12_BLEND_SRC_COLOR;
+			desc1.DestBlend = D3D12_BLEND_INV_SRC_COLOR;
 			desc1.BlendOp = D3D12_BLEND_OP_ADD;
 			desc1.SrcBlendAlpha = D3D12_BLEND_ZERO;
-			desc1.DestBlendAlpha = D3D12_BLEND_SRC_ALPHA;
+			desc1.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
 			desc1.BlendOpAlpha = D3D12_BLEND_OP_ADD;
 			desc1.LogicOp = D3D12_LOGIC_OP_NOOP;
 			desc1.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
