@@ -5,7 +5,8 @@
 #include "DXFrameworkHelper.h"
 #include "XUSGResource.h"
 
-#define REMOVE_PACKED_UAV	ResourceFlag(~0x8000)
+#define REMOVE_PACKED_UAV		(~ResourceFlag::NEED_PACKED_UAV | ResourceFlag::ALLOW_UNORDERED_ACCESS)
+#define REMOVE_RAYTRACING_AS	(~ResourceFlag::ACCELERATION_STRUCTURE | ResourceFlag::ALLOW_UNORDERED_ACCESS)
 
 using namespace std;
 using namespace XUSG;
@@ -326,7 +327,7 @@ bool Texture2D::Create(const Device& device, uint32_t width, uint32_t height, Fo
 
 	if (name) m_name = name;
 
-	const auto isPacked = (resourceFlags & ResourceFlag::BIND_PACKED_UAV) == ResourceFlag::BIND_PACKED_UAV;
+	const auto needPackedUAV = (resourceFlags & ResourceFlag::NEED_PACKED_UAV) == ResourceFlag::NEED_PACKED_UAV;
 	resourceFlags &= REMOVE_PACKED_UAV;
 
 	const auto hasSRV = (resourceFlags & ResourceFlag::DENY_SHADER_RESOURCE) == ResourceFlag::NONE;
@@ -334,7 +335,7 @@ bool Texture2D::Create(const Device& device, uint32_t width, uint32_t height, Fo
 
 	// Map formats
 	auto formatResource = format;
-	const auto formatUAV = isPacked ? MapToPackedFormat(formatResource) : format;
+	const auto formatUAV = needPackedUAV ? MapToPackedFormat(formatResource) : format;
 
 	// Setup the texture description.
 	const auto desc = CD3DX12_RESOURCE_DESC::Tex2D(static_cast<DXGI_FORMAT>(formatResource),
@@ -369,7 +370,7 @@ bool Texture2D::Create(const Device& device, uint32_t width, uint32_t height, Fo
 	if (hasUAV)
 	{
 		N_RETURN(CreateUAVs(arraySize, format, numMips), false);
-		if (isPacked) N_RETURN(CreateUAVs(arraySize, formatUAV, numMips, &m_packedUavs), false);
+		if (needPackedUAV) N_RETURN(CreateUAVs(arraySize, formatUAV, numMips, &m_packedUavs), false);
 	}
 
 	// Create SRV for each level
@@ -1007,7 +1008,7 @@ bool RenderTarget::create(const Device& device, uint32_t width, uint32_t height,
 
 	if (name) m_name = name;
 
-	const auto isPacked = (resourceFlags & ResourceFlag::BIND_PACKED_UAV) == ResourceFlag::BIND_PACKED_UAV;
+	const auto needPackedUAV = (resourceFlags & ResourceFlag::NEED_PACKED_UAV) == ResourceFlag::NEED_PACKED_UAV;
 	resourceFlags &= REMOVE_PACKED_UAV;
 
 	const auto hasSRV = (resourceFlags & ResourceFlag::DENY_SHADER_RESOURCE) == ResourceFlag::NONE;
@@ -1015,7 +1016,7 @@ bool RenderTarget::create(const Device& device, uint32_t width, uint32_t height,
 
 	// Map formats
 	auto formatResource = format;
-	const auto formatUAV = isPacked ? MapToPackedFormat(formatResource) : format;
+	const auto formatUAV = needPackedUAV ? MapToPackedFormat(formatResource) : format;
 
 	// Setup the texture description.
 	const auto desc = CD3DX12_RESOURCE_DESC::Tex2D(static_cast<DXGI_FORMAT>(formatResource),
@@ -1047,7 +1048,7 @@ bool RenderTarget::create(const Device& device, uint32_t width, uint32_t height,
 	if (hasUAV)
 	{
 		N_RETURN(CreateUAVs(arraySize, format, numMips), false);
-		if (isPacked) N_RETURN(CreateUAVs(arraySize, formatUAV, numMips, &m_packedUavs), false);
+		if (needPackedUAV) N_RETURN(CreateUAVs(arraySize, formatUAV, numMips, &m_packedUavs), false);
 	}
 
 	return true;
@@ -1436,7 +1437,7 @@ bool Texture3D::Create(const Device& device, uint32_t width, uint32_t height,
 
 	if (name) m_name = name;
 
-	const auto isPacked = (resourceFlags & ResourceFlag::BIND_PACKED_UAV) == ResourceFlag::BIND_PACKED_UAV;
+	const auto needPackedUAV = (resourceFlags & ResourceFlag::NEED_PACKED_UAV) == ResourceFlag::NEED_PACKED_UAV;
 	resourceFlags &= REMOVE_PACKED_UAV;
 
 	const auto hasSRV = (resourceFlags & ResourceFlag::DENY_SHADER_RESOURCE) == ResourceFlag::NONE;
@@ -1444,7 +1445,7 @@ bool Texture3D::Create(const Device& device, uint32_t width, uint32_t height,
 
 	// Map formats
 	auto formatResource = format;
-	const auto formatUAV = isPacked ? MapToPackedFormat(formatResource) : format;
+	const auto formatUAV = needPackedUAV ? MapToPackedFormat(formatResource) : format;
 
 	// Setup the texture description.
 	const auto desc = CD3DX12_RESOURCE_DESC::Tex3D(static_cast<DXGI_FORMAT>(formatResource),
@@ -1479,7 +1480,7 @@ bool Texture3D::Create(const Device& device, uint32_t width, uint32_t height,
 	if (hasUAV)
 	{
 		N_RETURN(CreateUAVs(format, numMips), false);
-		if (isPacked) N_RETURN(CreateUAVs(formatUAV, numMips, &m_packedUavs), false);
+		if (needPackedUAV) N_RETURN(CreateUAVs(formatUAV, numMips, &m_packedUavs), false);
 	}
 
 	// Create SRV for each level
@@ -1765,6 +1766,9 @@ bool RawBuffer::create(const Device& device, uint64_t byteWidth, ResourceFlag re
 
 	if (name) m_name = name;
 
+	const auto isRaytracingAS = (resourceFlags & ResourceFlag::ACCELERATION_STRUCTURE) == ResourceFlag::ACCELERATION_STRUCTURE;
+	resourceFlags &= REMOVE_RAYTRACING_AS;
+
 	// Setup the buffer description.
 	const auto desc = CD3DX12_RESOURCE_DESC::Buffer(byteWidth, static_cast<D3D12_RESOURCE_FLAGS>(resourceFlags));
 
@@ -1781,7 +1785,9 @@ bool RawBuffer::create(const Device& device, uint64_t byteWidth, ResourceFlag re
 			state = ResourceState::COPY_DEST;
 		break;
 	default:
-		for (auto& state : m_states)
+		if (isRaytracingAS) for (auto& state : m_states)
+			state = ResourceState::RAYTRACING_ACCELERATION_STRUCTURE;
+		else for (auto& state : m_states)
 			state = ResourceState::COMMON;
 	}
 
@@ -1913,7 +1919,7 @@ bool TypedBuffer::Create(const Device& device, uint32_t numElements, uint32_t st
 	const uint32_t* firstSRVElements, uint32_t numUAVs, const uint32_t* firstUAVElements,
 	const wchar_t* name)
 {
-	const auto isPacked = (resourceFlags & ResourceFlag::BIND_PACKED_UAV) == ResourceFlag::BIND_PACKED_UAV;
+	const auto needPackedUAV = (resourceFlags & ResourceFlag::NEED_PACKED_UAV) == ResourceFlag::NEED_PACKED_UAV;
 	resourceFlags &= REMOVE_PACKED_UAV;
 
 	const auto hasSRV = (resourceFlags & ResourceFlag::DENY_SHADER_RESOURCE) == ResourceFlag::NONE;
@@ -1924,7 +1930,7 @@ bool TypedBuffer::Create(const Device& device, uint32_t numElements, uint32_t st
 
 	// Map formats
 	auto formatResource = format;
-	const auto formatUAV = isPacked ? MapToPackedFormat(formatResource) : format;
+	const auto formatUAV = needPackedUAV ? MapToPackedFormat(formatResource) : format;
 
 	// Create buffer
 	N_RETURN(create(device, stride * numElements, resourceFlags,
@@ -1937,7 +1943,7 @@ bool TypedBuffer::Create(const Device& device, uint32_t numElements, uint32_t st
 	if (numUAVs > 0)
 	{
 		N_RETURN(CreateUAVs(numElements, format, stride, firstUAVElements, numUAVs), false);
-		if (isPacked) N_RETURN(CreateUAVs(numElements, formatUAV, stride, firstUAVElements, numUAVs, &m_packedUavs), false);
+		if (needPackedUAV) N_RETURN(CreateUAVs(numElements, formatUAV, stride, firstUAVElements, numUAVs, &m_packedUavs), false);
 	}
 
 	return true;
