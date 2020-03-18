@@ -285,7 +285,7 @@ uint32_t Reflector::GetResourceBindingPointByName(const char* name, uint32_t def
 		for (auto i = 0u; i < libDesc.FunctionCount; ++i)
 		{
 			const auto funcReflection = m_libraryReflection->GetFunctionByIndex(i);
-			const auto hr = m_shaderReflection->GetResourceBindingDescByName(name, &desc);
+			const auto hr = funcReflection->GetResourceBindingDescByName(name, &desc);
 			if (SUCCEEDED(hr))
 			{
 				bindPoint = desc.BindPoint;
