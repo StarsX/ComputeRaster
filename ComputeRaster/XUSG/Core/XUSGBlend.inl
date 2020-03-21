@@ -8,84 +8,75 @@ namespace XUSG
 {
 	namespace Graphics
 	{
-		Blend DefaultOpaque()
+		Blend DefaultOpaque(uint8_t n)
 		{
 			return make_shared<D3D12_BLEND_DESC>(CD3DX12_BLEND_DESC(D3D12_DEFAULT));
 		}
 
-		Blend Premultiplied()
+		Blend Premultiplied(uint8_t n)
 		{
 			const auto blend = make_shared<D3D12_BLEND_DESC>();
 			blend->AlphaToCoverageEnable = FALSE;
 			blend->IndependentBlendEnable = FALSE;
 
-			D3D12_RENDER_TARGET_BLEND_DESC desc;
-			desc.BlendEnable = TRUE;
-			desc.LogicOpEnable = FALSE;
-			desc.SrcBlend = D3D12_BLEND_ONE;
-			desc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-			desc.BlendOp = D3D12_BLEND_OP_ADD;
-			desc.SrcBlendAlpha = D3D12_BLEND_ONE;
-			desc.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
-			desc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
-			desc.LogicOp = D3D12_LOGIC_OP_NOOP;
-			desc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-
-			for (auto& renderTarget : blend->RenderTarget)
-				renderTarget = desc;
+			auto& pDesc = blend->RenderTarget;
+			pDesc->BlendEnable = TRUE;
+			pDesc->LogicOpEnable = FALSE;
+			pDesc->SrcBlend = D3D12_BLEND_ONE;
+			pDesc->DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+			pDesc->BlendOp = D3D12_BLEND_OP_ADD;
+			pDesc->SrcBlendAlpha = D3D12_BLEND_ONE;
+			pDesc->DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+			pDesc->BlendOpAlpha = D3D12_BLEND_OP_ADD;
+			pDesc->LogicOp = D3D12_LOGIC_OP_NOOP;
+			pDesc->RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
 			return blend;
 		}
 
-		Blend Additive()
+		Blend Additive(uint8_t n)
 		{
 			const auto blend = make_shared<D3D12_BLEND_DESC>();
 			blend->AlphaToCoverageEnable = FALSE;
 			blend->IndependentBlendEnable = FALSE;
 
-			D3D12_RENDER_TARGET_BLEND_DESC desc;
-			desc.BlendEnable = TRUE;
-			desc.LogicOpEnable = FALSE;
-			desc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
-			desc.DestBlend = D3D12_BLEND_ONE;
-			desc.BlendOp = D3D12_BLEND_OP_ADD;
-			desc.SrcBlendAlpha = D3D12_BLEND_SRC_ALPHA;
-			desc.DestBlendAlpha = D3D12_BLEND_ONE;
-			desc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
-			desc.LogicOp = D3D12_LOGIC_OP_NOOP;
-			desc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-
-			for (auto& renderTarget : blend->RenderTarget)
-				renderTarget = desc;
+			auto& pDesc = blend->RenderTarget;
+			pDesc->BlendEnable = TRUE;
+			pDesc->LogicOpEnable = FALSE;
+			pDesc->SrcBlend = D3D12_BLEND_SRC_ALPHA;
+			pDesc->DestBlend = D3D12_BLEND_ONE;
+			pDesc->BlendOp = D3D12_BLEND_OP_ADD;
+			pDesc->SrcBlendAlpha = D3D12_BLEND_SRC_ALPHA;
+			pDesc->DestBlendAlpha = D3D12_BLEND_ONE;
+			pDesc->BlendOpAlpha = D3D12_BLEND_OP_ADD;
+			pDesc->LogicOp = D3D12_LOGIC_OP_NOOP;
+			pDesc->RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
 			return blend;
 		}
 
-		Blend NonPremultiplied()
+		Blend NonPremultiplied(uint8_t n)
 		{
 			const auto blend = make_shared<D3D12_BLEND_DESC>();
 			blend->AlphaToCoverageEnable = FALSE;
 			blend->IndependentBlendEnable = FALSE;
 
-			D3D12_RENDER_TARGET_BLEND_DESC desc;
-			desc.BlendEnable = TRUE;
-			desc.LogicOpEnable = FALSE;
-			desc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
-			desc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-			desc.BlendOp = D3D12_BLEND_OP_ADD;
-			desc.SrcBlendAlpha = D3D12_BLEND_SRC_ALPHA;
-			desc.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
-			desc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
-			desc.LogicOp = D3D12_LOGIC_OP_NOOP;
-			desc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-
-			for (auto& renderTarget : blend->RenderTarget)
-				renderTarget = desc;
+			auto& pDesc = blend->RenderTarget;
+			pDesc->BlendEnable = TRUE;
+			pDesc->LogicOpEnable = FALSE;
+			pDesc->SrcBlend = D3D12_BLEND_SRC_ALPHA;
+			pDesc->DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+			pDesc->BlendOp = D3D12_BLEND_OP_ADD;
+			pDesc->SrcBlendAlpha = D3D12_BLEND_SRC_ALPHA;
+			pDesc->DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+			pDesc->BlendOpAlpha = D3D12_BLEND_OP_ADD;
+			pDesc->LogicOp = D3D12_LOGIC_OP_NOOP;
+			pDesc->RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
 			return blend;
 		}
 
-		Blend NonPremultipliedRT0()
+		Blend NonPremultipliedRT0(uint8_t n)
 		{
 			const auto blend = make_shared<D3D12_BLEND_DESC>();
 			blend->AlphaToCoverageEnable = FALSE;
@@ -122,157 +113,168 @@ namespace XUSG
 			return blend;
 		}
 
-		Blend AlphaToCoverage()
+		Blend AlphaToCoverage(uint8_t n)
 		{
 			const auto blend = make_shared<D3D12_BLEND_DESC>();
 			blend->AlphaToCoverageEnable = TRUE;
 			blend->IndependentBlendEnable = FALSE;
 
-			D3D12_RENDER_TARGET_BLEND_DESC desc;
-			desc.BlendEnable = FALSE;
-			desc.LogicOpEnable = FALSE;
-			desc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
-			desc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-			desc.BlendOp = D3D12_BLEND_OP_ADD;
-			desc.SrcBlendAlpha = D3D12_BLEND_SRC_ALPHA;
-			desc.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
-			desc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
-			desc.LogicOp = D3D12_LOGIC_OP_NOOP;
-			desc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-
-			for (auto& renderTarget : blend->RenderTarget)
-				renderTarget = desc;
+			auto& pDesc = blend->RenderTarget;
+			pDesc->BlendEnable = FALSE;
+			pDesc->LogicOpEnable = FALSE;
+			pDesc->SrcBlend = D3D12_BLEND_SRC_ALPHA;
+			pDesc->DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+			pDesc->BlendOp = D3D12_BLEND_OP_ADD;
+			pDesc->SrcBlendAlpha = D3D12_BLEND_SRC_ALPHA;
+			pDesc->DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+			pDesc->BlendOpAlpha = D3D12_BLEND_OP_ADD;
+			pDesc->LogicOp = D3D12_LOGIC_OP_NOOP;
+			pDesc->RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
 			return blend;
 		}
 
-		Blend Accumulative()
+		Blend Accumulative(uint8_t n)
 		{
 			const auto blend = make_shared<D3D12_BLEND_DESC>();
 			blend->AlphaToCoverageEnable = FALSE;
 			blend->IndependentBlendEnable = FALSE;
 
-			D3D12_RENDER_TARGET_BLEND_DESC desc;
-			desc.BlendEnable = TRUE;
-			desc.LogicOpEnable = FALSE;
-			desc.SrcBlend = D3D12_BLEND_ONE;
-			desc.DestBlend = D3D12_BLEND_ONE;
-			desc.BlendOp = D3D12_BLEND_OP_ADD;
-			desc.SrcBlendAlpha = D3D12_BLEND_ONE;
-			desc.DestBlendAlpha = D3D12_BLEND_ONE;
-			desc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
-			desc.LogicOp = D3D12_LOGIC_OP_NOOP;
-			desc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-
-			for (auto& renderTarget : blend->RenderTarget)
-				renderTarget = desc;
+			auto& pDesc = blend->RenderTarget;
+			pDesc->BlendEnable = TRUE;
+			pDesc->LogicOpEnable = FALSE;
+			pDesc->SrcBlend = D3D12_BLEND_ONE;
+			pDesc->DestBlend = D3D12_BLEND_ONE;
+			pDesc->BlendOp = D3D12_BLEND_OP_ADD;
+			pDesc->SrcBlendAlpha = D3D12_BLEND_ONE;
+			pDesc->DestBlendAlpha = D3D12_BLEND_ONE;
+			pDesc->BlendOpAlpha = D3D12_BLEND_OP_ADD;
+			pDesc->LogicOp = D3D12_LOGIC_OP_NOOP;
+			pDesc->RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
 			return blend;
 		}
 
-		Blend AutoNonPremultiplied()
+		Blend AutoNonPremultiplied(uint8_t n)
 		{
 			const auto blend = make_shared<D3D12_BLEND_DESC>();
 			blend->AlphaToCoverageEnable = FALSE;
 			blend->IndependentBlendEnable = FALSE;
 
-			D3D12_RENDER_TARGET_BLEND_DESC desc;
-			desc.BlendEnable = TRUE;
-			desc.LogicOpEnable = FALSE;
-			desc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
-			desc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-			desc.BlendOp = D3D12_BLEND_OP_ADD;
-			desc.SrcBlendAlpha = D3D12_BLEND_ONE;
-			desc.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
-			desc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
-			desc.LogicOp = D3D12_LOGIC_OP_NOOP;
-			desc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-
-			for (auto& renderTarget : blend->RenderTarget)
-				renderTarget = desc;
+			auto& pDesc = blend->RenderTarget;
+			pDesc->BlendEnable = TRUE;
+			pDesc->LogicOpEnable = FALSE;
+			pDesc->SrcBlend = D3D12_BLEND_SRC_ALPHA;
+			pDesc->DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+			pDesc->BlendOp = D3D12_BLEND_OP_ADD;
+			pDesc->SrcBlendAlpha = D3D12_BLEND_ONE;
+			pDesc->DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+			pDesc->BlendOpAlpha = D3D12_BLEND_OP_ADD;
+			pDesc->LogicOp = D3D12_LOGIC_OP_NOOP;
+			pDesc->RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
 			return blend;
 		}
 
-		Blend ZeroAlphaNonPremultiplied()
+		Blend ZeroAlphaNonPremultiplied(uint8_t n)
 		{
 			const auto blend = make_shared<D3D12_BLEND_DESC>();
 			blend->AlphaToCoverageEnable = FALSE;
 			blend->IndependentBlendEnable = FALSE;
 
-			D3D12_RENDER_TARGET_BLEND_DESC desc;
-			desc.BlendEnable = TRUE;
-			desc.LogicOpEnable = FALSE;
-			desc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
-			desc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-			desc.BlendOp = D3D12_BLEND_OP_ADD;
-			desc.SrcBlendAlpha = D3D12_BLEND_ZERO;
-			desc.DestBlendAlpha = D3D12_BLEND_ZERO;
-			desc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
-			desc.LogicOp = D3D12_LOGIC_OP_NOOP;
-			desc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-
-			for (auto& renderTarget : blend->RenderTarget)
-				renderTarget = desc;
+			auto& pDesc = blend->RenderTarget;
+			pDesc->BlendEnable = TRUE;
+			pDesc->LogicOpEnable = FALSE;
+			pDesc->SrcBlend = D3D12_BLEND_SRC_ALPHA;
+			pDesc->DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+			pDesc->BlendOp = D3D12_BLEND_OP_ADD;
+			pDesc->SrcBlendAlpha = D3D12_BLEND_ZERO;
+			pDesc->DestBlendAlpha = D3D12_BLEND_ZERO;
+			pDesc->BlendOpAlpha = D3D12_BLEND_OP_ADD;
+			pDesc->LogicOp = D3D12_LOGIC_OP_NOOP;
+			pDesc->RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
 			return blend;
 		}
 
-		Blend Multiplied()
+		Blend Multiplied(uint8_t n)
 		{
 			const auto blend = make_shared<D3D12_BLEND_DESC>();
 			blend->AlphaToCoverageEnable = FALSE;
 			blend->IndependentBlendEnable = FALSE;
 
-			D3D12_RENDER_TARGET_BLEND_DESC desc;
-			desc.BlendEnable = TRUE;
-			desc.LogicOpEnable = FALSE;
-			desc.SrcBlend = D3D12_BLEND_ZERO;
-			desc.DestBlend = D3D12_BLEND_SRC_COLOR;
-			desc.BlendOp = D3D12_BLEND_OP_ADD;
-			desc.SrcBlendAlpha = D3D12_BLEND_ZERO;
-			desc.DestBlendAlpha = D3D12_BLEND_SRC_ALPHA;
-			desc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
-			desc.LogicOp = D3D12_LOGIC_OP_NOOP;
-			desc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-
-			for (auto& renderTarget : blend->RenderTarget)
-				renderTarget = desc;
+			auto& pDesc = blend->RenderTarget;
+			pDesc->BlendEnable = TRUE;
+			pDesc->LogicOpEnable = FALSE;
+			pDesc->SrcBlend = D3D12_BLEND_ZERO;
+			pDesc->DestBlend = D3D12_BLEND_SRC_COLOR;
+			pDesc->BlendOp = D3D12_BLEND_OP_ADD;
+			pDesc->SrcBlendAlpha = D3D12_BLEND_ZERO;
+			pDesc->DestBlendAlpha = D3D12_BLEND_SRC_ALPHA;
+			pDesc->BlendOpAlpha = D3D12_BLEND_OP_ADD;
+			pDesc->LogicOp = D3D12_LOGIC_OP_NOOP;
+			pDesc->RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
 			return blend;
 		}
 
-		Blend Weighted()
+		Blend WeightedPremul(uint8_t n)
+		{
+			const auto blend = make_shared<D3D12_BLEND_DESC>();
+			blend->AlphaToCoverageEnable = FALSE;
+			blend->IndependentBlendEnable = FALSE;
+
+			auto& pDesc = blend->RenderTarget;
+			pDesc->BlendEnable = TRUE;
+			pDesc->LogicOpEnable = FALSE;
+			pDesc->SrcBlend = D3D12_BLEND_ONE;
+			pDesc->DestBlend = D3D12_BLEND_ONE;
+			pDesc->BlendOp = D3D12_BLEND_OP_ADD;
+			pDesc->SrcBlendAlpha = D3D12_BLEND_ONE;
+			pDesc->DestBlendAlpha = D3D12_BLEND_ONE;
+			pDesc->BlendOpAlpha = D3D12_BLEND_OP_ADD;
+			pDesc->LogicOp = D3D12_LOGIC_OP_NOOP;
+			pDesc->RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+			return blend;
+		}
+
+		Blend WeightedPremulPerRT(uint8_t n)
 		{
 			const auto blend = make_shared<D3D12_BLEND_DESC>();
 			blend->AlphaToCoverageEnable = FALSE;
 			blend->IndependentBlendEnable = TRUE;
 
-			// Accumulation
-			auto& desc0 = blend->RenderTarget[0];
-			desc0.BlendEnable = TRUE;
-			desc0.LogicOpEnable = FALSE;
-			desc0.SrcBlend = D3D12_BLEND_SRC_ALPHA;
-			desc0.DestBlend = D3D12_BLEND_ONE;
-			desc0.BlendOp = D3D12_BLEND_OP_ADD;
-			desc0.SrcBlendAlpha = D3D12_BLEND_ONE;
-			desc0.DestBlendAlpha = D3D12_BLEND_ONE;
-			desc0.BlendOpAlpha = D3D12_BLEND_OP_ADD;
-			desc0.LogicOp = D3D12_LOGIC_OP_NOOP;
-			desc0.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+			assert(n < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
+
+			// Accumulations
+			for (auto i = 0ui8; i < n; ++i)
+			{
+				auto& desc = blend->RenderTarget[0];
+				desc.BlendEnable = TRUE;
+				desc.LogicOpEnable = FALSE;
+				desc.SrcBlend = D3D12_BLEND_ONE;
+				desc.DestBlend = D3D12_BLEND_ONE;
+				desc.BlendOp = D3D12_BLEND_OP_ADD;
+				desc.SrcBlendAlpha = D3D12_BLEND_ONE;
+				desc.DestBlendAlpha = D3D12_BLEND_ONE;
+				desc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+				desc.LogicOp = D3D12_LOGIC_OP_NOOP;
+				desc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+			}
 
 			// Production
-			auto& desc1 = blend->RenderTarget[1];
-			desc1.BlendEnable = TRUE;
-			desc1.LogicOpEnable = FALSE;
-			desc1.SrcBlend = D3D12_BLEND_ZERO;
-			desc1.DestBlend = D3D12_BLEND_INV_SRC_COLOR;
-			desc1.BlendOp = D3D12_BLEND_OP_ADD;
-			desc1.SrcBlendAlpha = D3D12_BLEND_ZERO;
-			desc1.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
-			desc1.BlendOpAlpha = D3D12_BLEND_OP_ADD;
-			desc1.LogicOp = D3D12_LOGIC_OP_NOOP;
-			desc1.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+			auto& desc = blend->RenderTarget[n];
+			desc.BlendEnable = TRUE;
+			desc.LogicOpEnable = FALSE;
+			desc.SrcBlend = D3D12_BLEND_ZERO;
+			desc.DestBlend = D3D12_BLEND_INV_SRC_COLOR;
+			desc.BlendOp = D3D12_BLEND_OP_ADD;
+			desc.SrcBlendAlpha = D3D12_BLEND_ZERO;
+			desc.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+			desc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+			desc.LogicOp = D3D12_LOGIC_OP_NOOP;
+			desc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
 			// Default
 			D3D12_RENDER_TARGET_BLEND_DESC descDefault;
@@ -287,56 +289,106 @@ namespace XUSG
 			descDefault.LogicOp = D3D12_LOGIC_OP_NOOP;
 			descDefault.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
-			for (auto i = 2u; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+			for (auto i = n + 1; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
 				blend->RenderTarget[i] = descDefault;
 
 			return blend;
 		}
 
-		Blend SelectMin()
+		Blend WeightedPerRT(uint8_t n)
 		{
 			const auto blend = make_shared<D3D12_BLEND_DESC>();
 			blend->AlphaToCoverageEnable = FALSE;
-			blend->IndependentBlendEnable = FALSE;
+			blend->IndependentBlendEnable = TRUE;
 
-			D3D12_RENDER_TARGET_BLEND_DESC desc;
+			assert(n < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
+
+			// Accumulations
+			for (auto i = 0ui8; i < n; ++i)
+			{
+				auto& desc = blend->RenderTarget[0];
+				desc.BlendEnable = TRUE;
+				desc.LogicOpEnable = FALSE;
+				desc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+				desc.DestBlend = D3D12_BLEND_ONE;
+				desc.BlendOp = D3D12_BLEND_OP_ADD;
+				desc.SrcBlendAlpha = D3D12_BLEND_ONE;
+				desc.DestBlendAlpha = D3D12_BLEND_ONE;
+				desc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+				desc.LogicOp = D3D12_LOGIC_OP_NOOP;
+				desc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+			}
+
+			// Production
+			auto& desc = blend->RenderTarget[n];
 			desc.BlendEnable = TRUE;
 			desc.LogicOpEnable = FALSE;
-			desc.SrcBlend = D3D12_BLEND_ONE;
-			desc.DestBlend = D3D12_BLEND_ONE;
-			desc.BlendOp = D3D12_BLEND_OP_MIN;
-			desc.SrcBlendAlpha = D3D12_BLEND_ONE;
-			desc.DestBlendAlpha = D3D12_BLEND_ONE;
-			desc.BlendOpAlpha = D3D12_BLEND_OP_MIN;
+			desc.SrcBlend = D3D12_BLEND_ZERO;
+			desc.DestBlend = D3D12_BLEND_INV_SRC_COLOR;
+			desc.BlendOp = D3D12_BLEND_OP_ADD;
+			desc.SrcBlendAlpha = D3D12_BLEND_ZERO;
+			desc.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+			desc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
 			desc.LogicOp = D3D12_LOGIC_OP_NOOP;
 			desc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
-			for (auto& renderTarget : blend->RenderTarget)
-				renderTarget = desc;
+			// Default
+			D3D12_RENDER_TARGET_BLEND_DESC descDefault;
+			descDefault.BlendEnable = FALSE;
+			descDefault.LogicOpEnable = FALSE;
+			descDefault.SrcBlend = D3D12_BLEND_ONE;
+			descDefault.DestBlend = D3D12_BLEND_ZERO;
+			descDefault.BlendOp = D3D12_BLEND_OP_ADD;
+			descDefault.SrcBlendAlpha = D3D12_BLEND_ONE;
+			descDefault.DestBlendAlpha = D3D12_BLEND_ZERO;
+			descDefault.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+			descDefault.LogicOp = D3D12_LOGIC_OP_NOOP;
+			descDefault.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+			for (auto i = n + 1; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+				blend->RenderTarget[i] = descDefault;
 
 			return blend;
 		}
 
-		Blend SelectMax()
+		Blend SelectMin(uint8_t n)
 		{
 			const auto blend = make_shared<D3D12_BLEND_DESC>();
 			blend->AlphaToCoverageEnable = FALSE;
 			blend->IndependentBlendEnable = FALSE;
 
-			D3D12_RENDER_TARGET_BLEND_DESC desc;
-			desc.BlendEnable = TRUE;
-			desc.LogicOpEnable = FALSE;
-			desc.SrcBlend = D3D12_BLEND_ONE;
-			desc.DestBlend = D3D12_BLEND_ONE;
-			desc.BlendOp = D3D12_BLEND_OP_MAX;
-			desc.SrcBlendAlpha = D3D12_BLEND_ONE;
-			desc.DestBlendAlpha = D3D12_BLEND_ONE;
-			desc.BlendOpAlpha = D3D12_BLEND_OP_MAX;
-			desc.LogicOp = D3D12_LOGIC_OP_NOOP;
-			desc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+			auto& pDesc = blend->RenderTarget;
+			pDesc->BlendEnable = TRUE;
+			pDesc->LogicOpEnable = FALSE;
+			pDesc->SrcBlend = D3D12_BLEND_ONE;
+			pDesc->DestBlend = D3D12_BLEND_ONE;
+			pDesc->BlendOp = D3D12_BLEND_OP_MIN;
+			pDesc->SrcBlendAlpha = D3D12_BLEND_ONE;
+			pDesc->DestBlendAlpha = D3D12_BLEND_ONE;
+			pDesc->BlendOpAlpha = D3D12_BLEND_OP_MIN;
+			pDesc->LogicOp = D3D12_LOGIC_OP_NOOP;
+			pDesc->RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
-			for (auto& renderTarget : blend->RenderTarget)
-				renderTarget = desc;
+			return blend;
+		}
+
+		Blend SelectMax(uint8_t n)
+		{
+			const auto blend = make_shared<D3D12_BLEND_DESC>();
+			blend->AlphaToCoverageEnable = FALSE;
+			blend->IndependentBlendEnable = FALSE;
+
+			auto& pDesc = blend->RenderTarget;
+			pDesc->BlendEnable = TRUE;
+			pDesc->LogicOpEnable = FALSE;
+			pDesc->SrcBlend = D3D12_BLEND_ONE;
+			pDesc->DestBlend = D3D12_BLEND_ONE;
+			pDesc->BlendOp = D3D12_BLEND_OP_MAX;
+			pDesc->SrcBlendAlpha = D3D12_BLEND_ONE;
+			pDesc->DestBlendAlpha = D3D12_BLEND_ONE;
+			pDesc->BlendOpAlpha = D3D12_BLEND_OP_MAX;
+			pDesc->LogicOp = D3D12_LOGIC_OP_NOOP;
+			pDesc->RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
 			return blend;
 		}

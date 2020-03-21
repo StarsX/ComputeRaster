@@ -49,9 +49,9 @@ void State::DSSetState(const DepthStencil& depthStencil)
 	m_pKey->DepthStencil = depthStencil.get();
 }
 
-void State::OMSetBlendState(BlendPreset preset, PipelineCache& pipelineCache)
+void State::OMSetBlendState(BlendPreset preset, PipelineCache& pipelineCache, uint8_t numColorRTs)
 {
-	OMSetBlendState(pipelineCache.GetBlend(preset));
+	OMSetBlendState(pipelineCache.GetBlend(preset, numColorRTs));
 }
 
 void State::RSSetState(RasterizerPreset preset, PipelineCache& pipelineCache)
@@ -132,7 +132,9 @@ PipelineCache::PipelineCache() :
 	m_pfnBlends[BlendPreset::AUTO_NON_PREMUL] = AutoNonPremultiplied;
 	m_pfnBlends[BlendPreset::ZERO_ALPHA_PREMUL] = ZeroAlphaNonPremultiplied;
 	m_pfnBlends[BlendPreset::MULTIPLITED] = Multiplied;
-	m_pfnBlends[BlendPreset::WEIGHTED] = Weighted;
+	m_pfnBlends[BlendPreset::WEIGHTED_PREMUL] = WeightedPremul;
+	m_pfnBlends[BlendPreset::WEIGHTED_PREMUL_PER_RT] = WeightedPremulPerRT;
+	m_pfnBlends[BlendPreset::WEIGHTED_PER_RT] = WeightedPerRT;
 	m_pfnBlends[BlendPreset::SELECT_MIN] = SelectMin;
 	m_pfnBlends[BlendPreset::SELECT_MAX] = SelectMax;
 
@@ -195,10 +197,10 @@ Pipeline PipelineCache::GetPipeline(const State& state, const wchar_t* name)
 	return getPipeline(state.GetKey(), name);
 }
 
-const Blend& PipelineCache::GetBlend(BlendPreset preset)
+const Blend& PipelineCache::GetBlend(BlendPreset preset, uint8_t numColorRTs)
 {
 	if (m_blends[preset] == nullptr)
-		m_blends[preset] = m_pfnBlends[preset]();
+		m_blends[preset] = m_pfnBlends[preset](numColorRTs);
 
 	return m_blends[preset];
 }

@@ -23,7 +23,9 @@ namespace XUSG
 			AUTO_NON_PREMUL,
 			ZERO_ALPHA_PREMUL,
 			MULTIPLITED,
-			WEIGHTED,
+			WEIGHTED_PREMUL,
+			WEIGHTED_PREMUL_PER_RT,
+			WEIGHTED_PER_RT,
 			SELECT_MIN,
 			SELECT_MAX,
 
@@ -81,7 +83,7 @@ namespace XUSG
 			void RSSetState(const Rasterizer& rasterizer);
 			void DSSetState(const DepthStencil& depthStencil);
 
-			void OMSetBlendState(BlendPreset preset, PipelineCache& pipelineCache);
+			void OMSetBlendState(BlendPreset preset, PipelineCache& pipelineCache, uint8_t numColorRTs = 1);
 			void RSSetState(RasterizerPreset preset, PipelineCache& pipelineCache);
 			void DSSetState(DepthStencilPreset preset, PipelineCache& pipelineCache);
 
@@ -120,7 +122,7 @@ namespace XUSG
 			Pipeline CreatePipeline(const State& state, const wchar_t* name = nullptr);
 			Pipeline GetPipeline(const State& state, const wchar_t* name = nullptr);
 
-			const Blend& GetBlend(BlendPreset preset);
+			const Blend& GetBlend(BlendPreset preset, uint8_t numColorRTs = 1);
 			const Rasterizer& GetRasterizer(RasterizerPreset preset);
 			const DepthStencil& GetDepthStencil(DepthStencilPreset preset);
 
@@ -137,7 +139,7 @@ namespace XUSG
 			Rasterizer		m_rasterizers[NUM_RS_PRESET];
 			DepthStencil	m_depthStencils[NUM_DS_PRESET];
 
-			std::function<Blend()>			m_pfnBlends[NUM_BLEND_PRESET];
+			std::function<Blend(uint8_t)>	m_pfnBlends[NUM_BLEND_PRESET];
 			std::function<Rasterizer()>		m_pfnRasterizers[NUM_RS_PRESET];
 			std::function<DepthStencil()>	m_pfnDepthStencils[NUM_DS_PRESET];
 		};
