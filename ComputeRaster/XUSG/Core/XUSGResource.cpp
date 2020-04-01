@@ -310,6 +310,7 @@ Descriptor ResourceBase::allocateSrvUavPool()
 Texture2D::Texture2D() :
 	ResourceBase(),
 	m_uavs(0),
+	m_packedUavs(0),
 	m_srvLevels(0)
 {
 }
@@ -1418,9 +1419,7 @@ Descriptor DepthStencil::allocateDsvPool()
 //--------------------------------------------------------------------------------------
 
 Texture3D::Texture3D() :
-	ResourceBase(),
-	m_uavs(0),
-	m_srvLevels(0)
+	Texture2D()
 {
 }
 
@@ -1569,21 +1568,6 @@ bool Texture3D::CreateUAVs(Format format, uint8_t numMips, vector<Descriptor>* p
 	}
 
 	return true;
-}
-
-Descriptor Texture3D::GetUAV(uint8_t index) const
-{
-	return m_uavs.size() > index ? m_uavs[index] : D3D12_DEFAULT;
-}
-
-Descriptor Texture3D::GetPackedUAV(uint8_t index) const
-{
-	return m_packedUavs.size() > index ? m_packedUavs[index] : D3D12_DEFAULT;
-}
-
-Descriptor Texture3D::GetSRVLevel(uint8_t level) const
-{
-	return m_srvLevels.size() > level ? m_srvLevels[level] : D3D12_DEFAULT;
 }
 
 uint32_t Texture3D::GetDepth() const

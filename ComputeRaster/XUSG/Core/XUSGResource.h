@@ -239,7 +239,7 @@ namespace XUSG
 	// 3D Texture
 	//--------------------------------------------------------------------------------------
 	class Texture3D :
-		public ResourceBase
+		public Texture2D
 	{
 	public:
 		Texture3D();
@@ -253,16 +253,7 @@ namespace XUSG
 		bool CreateUAVs(Format format = Format::UNKNOWN, uint8_t numMips = 1,
 			std::vector<Descriptor>* pUavs = nullptr);
 
-		Descriptor GetUAV(uint8_t index = 0) const;
-		Descriptor GetPackedUAV(uint8_t index = 0) const;
-		Descriptor GetSRVLevel(uint8_t level) const;
-
 		uint32_t GetDepth() const;
-
-	protected:
-		std::vector<Descriptor>	m_uavs;
-		std::vector<Descriptor>	m_packedUavs;
-		std::vector<Descriptor>	m_srvLevels;
 	};
 
 	//--------------------------------------------------------------------------------------
