@@ -12,13 +12,13 @@ public:
 	Renderer(const XUSG::Device& device);
 	virtual ~Renderer();
 
-	bool Init(const XUSG::CommandList& commandList, uint32_t width, uint32_t height,
+	bool Init(const XUSG::CommandList* pCommandList, uint32_t width, uint32_t height,
 		std::vector<XUSG::Resource>& uploaders, const char* fileName,
 		const DirectX::XMFLOAT4& posScale);
 
 	void UpdateFrame(uint32_t frameIndex, DirectX::CXMMATRIX view,
 		DirectX::CXMMATRIX proj, const DirectX::XMFLOAT3& eyePt, double time);
-	void Render(XUSG::CommandList& commandList, uint32_t frameIndex);
+	void Render(XUSG::CommandList* pCommandList, uint32_t frameIndex);
 
 	XUSG::Texture2D& GetColorTarget();
 
@@ -35,13 +35,13 @@ protected:
 	XUSG::Device m_device;
 
 	std::unique_ptr<SoftGraphicsPipeline> m_softGraphicsPipeline;
-	XUSG::VertexBuffer		m_vb;
-	XUSG::IndexBuffer		m_ib;
-	XUSG::ConstantBuffer	m_cbMatrices;
-	XUSG::ConstantBuffer	m_cbLighting;
-	XUSG::ConstantBuffer	m_cbMaterial;
+	XUSG::VertexBuffer_uptr		m_vb;
+	XUSG::IndexBuffer_uptr		m_ib;
+	XUSG::ConstantBuffer_uptr	m_cbMatrices;
+	XUSG::ConstantBuffer_uptr	m_cbLighting;
+	XUSG::ConstantBuffer_uptr	m_cbMaterial;
 
-	XUSG::Texture2D			m_colorTarget;
+	XUSG::Texture2D_uptr		m_colorTarget;
 	SoftGraphicsPipeline::DepthBuffer m_depth;
 
 	XUSG::DescriptorTable	m_cbvTables[NUM_CBV_TABLE];

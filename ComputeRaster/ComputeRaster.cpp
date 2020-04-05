@@ -118,7 +118,8 @@ void ComputeRaster::LoadPipeline()
 	// Create a RTV and a command allocator for each frame.
 	for (auto n = 0u; n < SoftGraphicsPipeline::FrameCount; n++)
 	{
-		N_RETURN(m_renderTargets[n].CreateFromSwapChain(m_device, m_swapChain, n), ThrowIfFailed(E_FAIL));
+		m_renderTargets[n] = RenderTarget::MakeUnique();
+		N_RETURN(m_renderTargets[n]->CreateFromSwapChain(m_device, m_swapChain, n), ThrowIfFailed(E_FAIL));
 		N_RETURN(m_device->GetCommandAllocator(m_commandAllocators[n], CommandListType::DIRECT), ThrowIfFailed(E_FAIL));
 	}
 }
@@ -127,17 +128,18 @@ void ComputeRaster::LoadPipeline()
 void ComputeRaster::LoadAssets()
 {
 	// Create the command list.
-	N_RETURN(m_device->GetCommandList(m_commandList.GetCommandList(), 0, CommandListType::DIRECT,
+	m_commandList = CommandList::MakeUnique();
+	N_RETURN(m_device->GetCommandList(m_commandList->GetCommandList(), 0, CommandListType::DIRECT,
 		m_commandAllocators[m_frameIndex], nullptr), ThrowIfFailed(E_FAIL));
 
 	vector<Resource> uploaders(0);
 	X_RETURN(m_renderer, make_unique<Renderer>(m_device), ThrowIfFailed(E_FAIL));
-	N_RETURN(m_renderer->Init(m_commandList, m_width, m_height, uploaders,
+	N_RETURN(m_renderer->Init(m_commandList.get(), m_width, m_height, uploaders,
 		m_meshFileName.c_str(), m_meshPosScale), ThrowIfFailed(E_FAIL));
 
 	// Close the command list and execute it to begin the initial GPU setup.
-	ThrowIfFailed(m_commandList.Close());
-	BaseCommandList* const ppCommandLists[] = { m_commandList.GetCommandList().get() };
+	ThrowIfFailed(m_commandList->Close());
+	BaseCommandList* const ppCommandLists[] = { m_commandList->GetCommandList().get() };
 	m_commandQueue->ExecuteCommandLists(static_cast<uint32_t>(size(ppCommandLists)), ppCommandLists);
 
 	// Create synchronization objects and wait until assets have been uploaded to the GPU.
@@ -196,7 +198,7 @@ void ComputeRaster::OnRender()
 	PopulateCommandList();
 
 	// Execute the command list.
-	BaseCommandList* const ppCommandLists[] = { m_commandList.GetCommandList().get() };
+	BaseCommandList* const ppCommandLists[] = { m_commandList->GetCommandList().get() };
 	m_commandQueue->ExecuteCommandLists(static_cast<uint32_t>(size(ppCommandLists)), ppCommandLists);
 
 	// Present the frame.
@@ -320,30 +322,30 @@ void ComputeRaster::PopulateCommandList()
 	// However, when ExecuteCommandList() is called on a particular command 
 	// list, that command list can then be reset at any time and must be before 
 	// re-recording.
-	ThrowIfFailed(m_commandList.Reset(m_commandAllocators[m_frameIndex], nullptr));
+	ThrowIfFailed(m_commandList->Reset(m_commandAllocators[m_frameIndex], nullptr));
 
 	// Record commands.
-	m_renderer->Render(m_commandList, m_frameIndex);
+	m_renderer->Render(m_commandList.get(), m_frameIndex);
 
 	// Copy to back buffer.
 	{
 		auto& colorTarget = m_renderer->GetColorTarget();
-		const TextureCopyLocation dst(m_renderTargets[m_frameIndex].GetResource().get(), 0);
+		const TextureCopyLocation dst(m_renderTargets[m_frameIndex]->GetResource().get(), 0);
 		const TextureCopyLocation src(colorTarget.GetResource().get(), 0);
 
 		ResourceBarrier barriers[2];
-		auto numBarriers = m_renderTargets[m_frameIndex].SetBarrier(barriers, ResourceState::COPY_DEST);
+		auto numBarriers = m_renderTargets[m_frameIndex]->SetBarrier(barriers, ResourceState::COPY_DEST);
 		numBarriers = colorTarget.SetBarrier(barriers, ResourceState::COPY_SOURCE, numBarriers);
-		m_commandList.Barrier(numBarriers, barriers);
+		m_commandList->Barrier(numBarriers, barriers);
 
-		m_commandList.CopyTextureRegion(dst, 0, 0, 0, src);
+		m_commandList->CopyTextureRegion(dst, 0, 0, 0, src);
 
 		// Indicate that the back buffer will now be used to present.
-		numBarriers = m_renderTargets[m_frameIndex].SetBarrier(barriers, ResourceState::PRESENT);
-		m_commandList.Barrier(numBarriers, barriers);
+		numBarriers = m_renderTargets[m_frameIndex]->SetBarrier(barriers, ResourceState::PRESENT);
+		m_commandList->Barrier(numBarriers, barriers);
 	}
 
-	ThrowIfFailed(m_commandList.Close());
+	ThrowIfFailed(m_commandList->Close());
 }
 
 // Wait for pending GPU work to complete.

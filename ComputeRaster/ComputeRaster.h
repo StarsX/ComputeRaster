@@ -49,8 +49,8 @@ private:
 	XUSG::CommandQueue		m_commandQueue;
 
 	XUSG::Device			m_device;
-	XUSG::RenderTarget		m_renderTargets[SoftGraphicsPipeline::FrameCount];
-	XUSG::CommandList		m_commandList;
+	XUSG::RenderTarget_uptr	m_renderTargets[SoftGraphicsPipeline::FrameCount];
+	XUSG::CommandList_uptr	m_commandList;
 
 	// App resources.
 	std::unique_ptr<Renderer> m_renderer;

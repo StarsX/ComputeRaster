@@ -12,18 +12,18 @@ class SoftGraphicsPipeline
 public:
 	struct DepthBuffer
 	{
-		XUSG::Texture2D PixelZ;
-		XUSG::Texture2D TileZ;
-		XUSG::Texture2D BinZ;
+		XUSG::Texture2D_uptr PixelZ;
+		XUSG::Texture2D_uptr TileZ;
+		XUSG::Texture2D_uptr BinZ;
 	};
 
 	SoftGraphicsPipeline(const XUSG::Device& device);
 	virtual ~SoftGraphicsPipeline();
 
-	bool Init(const XUSG::CommandList& commandList, std::vector<XUSG::Resource>& uploaders);
-	bool CreateVertexShaderLayout(XUSG::Util::PipelineLayout& pipelineLayout,
+	bool Init(const XUSG::CommandList* pCommandList, std::vector<XUSG::Resource>& uploaders);
+	bool CreateVertexShaderLayout(XUSG::Util::PipelineLayout* pPipelineLayout,
 		uint32_t slotCount = 0, int32_t srvBindingMax = -1, int32_t uavBindingMax = -1);
-	bool CreatePixelShaderLayout(XUSG::Util::PipelineLayout& pipelineLayout,
+	bool CreatePixelShaderLayout(XUSG::Util::PipelineLayout* pPipelineLayout,
 		bool hasDepth, uint32_t numRTs, uint32_t slotCount = 0, int32_t cbvBindingMax = -1,
 		int32_t srvBindingMax = -1, int32_t uavBindingMax = -1);
 	void SetAttribute(uint32_t i, uint32_t stride, XUSG::Format format, const wchar_t* name = L"Attribute");
@@ -36,15 +36,15 @@ public:
 	void ClearFloat(const XUSG::Texture2D& target, const float clearValues[4]);
 	void ClearUint(const XUSG::Texture2D& target, const uint32_t clearValues[4]);
 	void ClearDepth(const float clearValue);
-	void Draw(XUSG::CommandList& commandList, uint32_t numVertices);
-	void DrawIndexed(XUSG::CommandList& commandList, uint32_t numIndices);
+	void Draw(XUSG::CommandList* pCommandList, uint32_t numVertices);
+	void DrawIndexed(XUSG::CommandList* pCommandList, uint32_t numIndices);
 
 	bool CreateDepthBuffer(DepthBuffer &depth, uint32_t width, uint32_t height,
 		XUSG::Format format, const wchar_t* name = L"Depth");
-	bool CreateVertexBuffer(const XUSG::CommandList& commandList, XUSG::VertexBuffer& vb,
+	bool CreateVertexBuffer(const XUSG::CommandList* pCommandList, XUSG::VertexBuffer& vb,
 		std::vector<XUSG::Resource>& uploaders, const void* pData, uint32_t numVert,
 		uint32_t srtide, const wchar_t* name = L"VertexBuffer") const;
-	bool CreateIndexBuffer(const XUSG::CommandList& commandList, XUSG::IndexBuffer& ib,
+	bool CreateIndexBuffer(const XUSG::CommandList* pCommandList, XUSG::IndexBuffer& ib,
 		std::vector<XUSG::Resource>& uploaders, const void* pData, uint32_t numIdx,
 		XUSG::Format format, const wchar_t* name = L"IndexBuffer");
 	XUSG::DescriptorTableCache& GetDescriptorTableCache();
@@ -111,19 +111,19 @@ protected:
 	};
 
 	bool createPipelines();
-	bool createResetBuffer(const XUSG::CommandList& commandList, std::vector<XUSG::Resource>& uploaders);
+	bool createResetBuffer(const XUSG::CommandList* pCommandList, std::vector<XUSG::Resource>& uploaders);
 	bool createCommandLayout();
 	bool createDescriptorTables();
 
-	void draw(XUSG::CommandList& commandList, uint32_t num, StageIndex vs);
-	void rasterizer(XUSG::CommandList& commandList, uint32_t numTriangles);
+	void draw(XUSG::CommandList* pCommandList, uint32_t num, StageIndex vs);
+	void rasterizer(XUSG::CommandList* pCommandList, uint32_t numTriangles);
 
 	XUSG::Device m_device;
 
-	XUSG::ShaderPool				m_shaderPool;
-	XUSG::Compute::PipelineCache	m_computePipelineCache;
-	XUSG::PipelineLayoutCache		m_pipelineLayoutCache;
-	XUSG::DescriptorTableCache		m_descriptorTableCache;
+	XUSG::ShaderPool_uptr				m_shaderPool;
+	XUSG::Compute::PipelineCache_uptr	m_computePipelineCache;
+	XUSG::PipelineLayoutCache_uptr		m_pipelineLayoutCache;
+	XUSG::DescriptorTableCache_uptr		m_descriptorTableCache;
 
 	XUSG::PipelineLayout	m_pipelineLayouts[NUM_STAGE];
 	XUSG::Pipeline			m_pipelines[NUM_STAGE];
@@ -139,10 +139,10 @@ protected:
 	XUSG::DescriptorTable	m_uavTables[NUM_UAV_TABLE];
 	XUSG::DescriptorTable	m_samplerTable;
 
-	XUSG::ConstantBuffer	m_cbMatrices;
-	XUSG::ConstantBuffer	m_cbPerFrame;
-	XUSG::ConstantBuffer	m_cbPerObject;
-	XUSG::ConstantBuffer	m_cbBound;
+	XUSG::ConstantBuffer_uptr	m_cbMatrices;
+	XUSG::ConstantBuffer_uptr	m_cbPerFrame;
+	XUSG::ConstantBuffer_uptr	m_cbPerObject;
+	XUSG::ConstantBuffer_uptr	m_cbBound;
 
 	XUSG::Descriptor		m_vertexBufferView;
 	XUSG::Descriptor		m_indexBufferView;
@@ -150,14 +150,14 @@ protected:
 	DepthBuffer*			m_pDepth;
 
 	std::vector<AttributeInfo> m_attribInfo;
-	std::vector<XUSG::TypedBuffer> m_vertexAttribs;
-	XUSG::StructuredBuffer	m_vertexCompletions;
-	XUSG::StructuredBuffer	m_vertexPos;
-	XUSG::StructuredBuffer	m_tilePrimCountReset;
-	XUSG::StructuredBuffer	m_binPrimCount;
-	XUSG::StructuredBuffer	m_binPrimitives;
-	XUSG::StructuredBuffer	m_tilePrimCount;
-	XUSG::StructuredBuffer	m_tilePrimitives;
+	std::vector<XUSG::TypedBuffer_uptr> m_vertexAttribs;
+	XUSG::StructuredBuffer_uptr	m_vertexCompletions;
+	XUSG::StructuredBuffer_uptr	m_vertexPos;
+	XUSG::StructuredBuffer_uptr	m_tilePrimCountReset;
+	XUSG::StructuredBuffer_uptr	m_binPrimCount;
+	XUSG::StructuredBuffer_uptr	m_binPrimitives;
+	XUSG::StructuredBuffer_uptr	m_tilePrimCount;
+	XUSG::StructuredBuffer_uptr	m_tilePrimitives;
 
 	XUSG::Viewport			m_viewport;
 

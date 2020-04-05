@@ -4,18 +4,14 @@
 
 #pragma once
 
+#define DLL_EXPORT					__declspec(dllexport)
+#define DLL_IMPORT					__declspec(dllimport)
+
 #define H_RETURN(x, o, m, r)		{ const auto hr = x; if (FAILED(hr)) { o << m << std::endl; return r; } }
 #define V_RETURN(x, o, r)			H_RETURN(x, o, HrToString(hr), r)
 
 #define M_RETURN(x, o, m, r)		if (x) { o << m << std::endl; return r; }
 #define F_RETURN(x, o, h, r)		M_RETURN(x, o, HrToString(h), r)
-
-#define C_RETURN(x, r)				if (x) return r
-#define N_RETURN(x, r)				C_RETURN(!(x), r)
-#define X_RETURN(x, f, r)			{ x = f; N_RETURN(x, r); }
-
-#define DIV_UP(x, n)				(((x) - 1) / (n) + 1)
-#define SizeOfInUint32(obj)			DIV_UP(sizeof(obj), sizeof(uint32_t))
 
 #define APPEND_ALIGNED_ELEMENT		D3D12_APPEND_ALIGNED_ELEMENT
 #define BARRIER_ALL_SUBRESOURCES	D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES
@@ -520,52 +516,15 @@ namespace XUSG
 
 	// Device
 	MIDL_INTERFACE("189819f1-1db6-4b57-be54-1821339b85f7")
-		DX12Device : public ID3D12Device
+		DLL_EXPORT DX12Device : public ID3D12Device
 	{
-		bool GetCommandQueue(CommandQueue& commandQueue, CommandListType type, CommandQueueFlags flags, int32_t priority = 0, uint32_t nodeMask = 0)
-		{
-			D3D12_COMMAND_QUEUE_DESC queueDesc;
-			queueDesc.Type = static_cast<D3D12_COMMAND_LIST_TYPE>(type);
-			queueDesc.Priority = priority;
-			queueDesc.Flags = static_cast<D3D12_COMMAND_QUEUE_FLAGS>(flags);
-			queueDesc.NodeMask = nodeMask;
-
-			V_RETURN(CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandQueue)), std::cerr, false);
-			return true;
-		}
-
-		bool GetCommandAllocator(CommandAllocator& commandAllocator, CommandListType type)
-		{
-			V_RETURN(CreateCommandAllocator(static_cast<D3D12_COMMAND_LIST_TYPE>(type), IID_PPV_ARGS(&commandAllocator)), std::cerr, false);
-			return true;
-		}
-
+		bool GetCommandQueue(CommandQueue & commandQueue, CommandListType type, CommandQueueFlags flags, int32_t priority = 0, uint32_t nodeMask = 0);
+		bool GetCommandAllocator(CommandAllocator& commandAllocator, CommandListType type);
 		bool GetCommandList(GraphicsCommandList& commandList, uint32_t nodeMask, CommandListType type,
-			const CommandAllocator& commandAllocator, const Pipeline& pipeline)
-		{
-			V_RETURN(CreateCommandList(nodeMask, static_cast<D3D12_COMMAND_LIST_TYPE>(type), commandAllocator.get(),
-				pipeline.get(), IID_PPV_ARGS(&commandList)), std::cerr, false);
-			return true;
-		}
-
-		bool GetFence(Fence& fence, uint64_t initialValue, FenceFlag flags)
-		{
-			V_RETURN(CreateFence(initialValue, static_cast<D3D12_FENCE_FLAGS>(flags), IID_PPV_ARGS(&fence)), std::cerr, false);
-			return true;
-		}
-
+			const CommandAllocator& commandAllocator, const Pipeline& pipeline);
+		bool GetFence(Fence& fence, uint64_t initialValue, FenceFlag flags);
 		bool CreateCommandLayout(CommandLayout& commandLayout, uint32_t byteStride, uint32_t numArguments,
-			const IndirectArgument* pArguments, uint32_t nodeMask = 0)
-		{
-			D3D12_COMMAND_SIGNATURE_DESC programDesc;
-			programDesc.ByteStride = byteStride;
-			programDesc.NumArgumentDescs = numArguments;
-			programDesc.pArgumentDescs = reinterpret_cast<decltype(programDesc.pArgumentDescs)>(pArguments);
-			programDesc.NodeMask = nodeMask;
-
-			V_RETURN(CreateCommandSignature(&programDesc, nullptr, IID_PPV_ARGS(&commandLayout)), std::cerr, false);
-			return true;
-		}
+			const IndirectArgument* pArguments, uint32_t nodeMask = 0);
 	};
 	using Device = com_ptr<DX12Device>;
 
