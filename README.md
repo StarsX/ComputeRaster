@@ -9,3 +9,6 @@ Hot keys:
 [F1] show/hide FPS
 
 [Space] pause/play animation
+
+Prerequisite:
+https://github.com/StarsX/XUSGCore
