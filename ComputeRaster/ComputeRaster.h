@@ -44,13 +44,13 @@ public:
 	virtual void ParseCommandLineArgs(wchar_t* argv[], int argc);
 
 private:
-	XUSG::SwapChain			m_swapChain;
-	XUSG::CommandAllocator	m_commandAllocators[SoftGraphicsPipeline::FrameCount];
-	XUSG::CommandQueue		m_commandQueue;
+	XUSG::SwapChain				m_swapChain;
+	XUSG::CommandAllocator		m_commandAllocators[SoftGraphicsPipeline::FrameCount];
+	XUSG::CommandQueue			m_commandQueue;
 
-	XUSG::Device			m_device;
-	XUSG::RenderTarget_uptr	m_renderTargets[SoftGraphicsPipeline::FrameCount];
-	XUSG::CommandList_uptr	m_commandList;
+	XUSG::Device				m_device;
+	XUSG::RenderTarget::uptr	m_renderTargets[SoftGraphicsPipeline::FrameCount];
+	XUSG::CommandList::uptr		m_commandList;
 
 	// App resources.
 	std::unique_ptr<Renderer> m_renderer;

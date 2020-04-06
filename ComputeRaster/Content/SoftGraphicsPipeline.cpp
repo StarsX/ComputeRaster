@@ -26,7 +26,7 @@ SoftGraphicsPipeline::~SoftGraphicsPipeline()
 {
 }
 
-bool SoftGraphicsPipeline::Init(const CommandList* pCommandList, vector<Resource>& uploaders)
+bool SoftGraphicsPipeline::Init(CommandList* pCommandList, vector<Resource>& uploaders)
 {
 	const uint32_t tileBufferSize = (UINT32_MAX >> 4) + 1;
 	const uint32_t binBufferSize = tileBufferSize >> 6;
@@ -248,7 +248,7 @@ bool SoftGraphicsPipeline::CreateDepthBuffer(DepthBuffer& depth, uint32_t width,
 	return true;
 }
 
-bool SoftGraphicsPipeline::CreateVertexBuffer(const CommandList* pCommandList,
+bool SoftGraphicsPipeline::CreateVertexBuffer(CommandList* pCommandList,
 	VertexBuffer& vb, vector<Resource>& uploaders, const void* pData,
 	uint32_t numVert, uint32_t srtide, const wchar_t* name) const
 {
@@ -256,10 +256,10 @@ bool SoftGraphicsPipeline::CreateVertexBuffer(const CommandList* pCommandList,
 		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, 1, nullptr, name), false);
 	uploaders.push_back(nullptr);
 
-	return vb.Upload(*pCommandList, uploaders.back(), pData, srtide * numVert);
+	return vb.Upload(pCommandList, uploaders.back(), pData, srtide * numVert);
 }
 
-bool SoftGraphicsPipeline::CreateIndexBuffer(const CommandList* pCommandList,
+bool SoftGraphicsPipeline::CreateIndexBuffer(CommandList* pCommandList,
 	IndexBuffer& ib,vector<Resource>& uploaders, const void* pData,
 	uint32_t numIdx, Format format, const wchar_t* name)
 {
@@ -271,7 +271,7 @@ bool SoftGraphicsPipeline::CreateIndexBuffer(const CommandList* pCommandList,
 		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, 1, nullptr, name), false);
 	uploaders.push_back(nullptr);
 
-	return ib.Upload(*pCommandList, uploaders.back(), pData, byteWidth);
+	return ib.Upload(pCommandList, uploaders.back(), pData, byteWidth);
 }
 
 DescriptorTableCache& SoftGraphicsPipeline::GetDescriptorTableCache()
@@ -353,7 +353,7 @@ bool SoftGraphicsPipeline::createPipelines()
 	return true;
 }
 
-bool SoftGraphicsPipeline::createResetBuffer(const CommandList* pCommandList, vector<Resource>& uploaders)
+bool SoftGraphicsPipeline::createResetBuffer(CommandList* pCommandList, vector<Resource>& uploaders)
 {
 	m_tilePrimCountReset = StructuredBuffer::MakeUnique();
 	N_RETURN(m_tilePrimCountReset->Create(m_device, 1, sizeof(uint32_t), ResourceFlag::NONE,
@@ -361,14 +361,14 @@ bool SoftGraphicsPipeline::createResetBuffer(const CommandList* pCommandList, ve
 
 	const uint32_t pDataReset[] = { 0, 1, 1 };
 	uploaders.push_back(nullptr);
-	N_RETURN(m_tilePrimCount->Upload(*pCommandList, uploaders.back(), pDataReset, sizeof(uint32_t[3])), false);
+	N_RETURN(m_tilePrimCount->Upload(pCommandList, uploaders.back(), pDataReset, sizeof(uint32_t[3])), false);
 
 	uploaders.push_back(nullptr);
-	N_RETURN(m_binPrimCount->Upload(*pCommandList, uploaders.back(), pDataReset, sizeof(uint32_t[3])), false);
+	N_RETURN(m_binPrimCount->Upload(pCommandList, uploaders.back(), pDataReset, sizeof(uint32_t[3])), false);
 
 	uploaders.push_back(nullptr);
 
-	return m_tilePrimCountReset->Upload(*pCommandList, uploaders.back(), pDataReset, sizeof(uint32_t));
+	return m_tilePrimCountReset->Upload(pCommandList, uploaders.back(), pDataReset, sizeof(uint32_t));
 }
 
 bool SoftGraphicsPipeline::createCommandLayout()

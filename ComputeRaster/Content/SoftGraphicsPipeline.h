@@ -12,15 +12,15 @@ class SoftGraphicsPipeline
 public:
 	struct DepthBuffer
 	{
-		XUSG::Texture2D_uptr PixelZ;
-		XUSG::Texture2D_uptr TileZ;
-		XUSG::Texture2D_uptr BinZ;
+		XUSG::Texture2D::uptr PixelZ;
+		XUSG::Texture2D::uptr TileZ;
+		XUSG::Texture2D::uptr BinZ;
 	};
 
 	SoftGraphicsPipeline(const XUSG::Device& device);
 	virtual ~SoftGraphicsPipeline();
 
-	bool Init(const XUSG::CommandList* pCommandList, std::vector<XUSG::Resource>& uploaders);
+	bool Init(XUSG::CommandList* pCommandList, std::vector<XUSG::Resource>& uploaders);
 	bool CreateVertexShaderLayout(XUSG::Util::PipelineLayout* pPipelineLayout,
 		uint32_t slotCount = 0, int32_t srvBindingMax = -1, int32_t uavBindingMax = -1);
 	bool CreatePixelShaderLayout(XUSG::Util::PipelineLayout* pPipelineLayout,
@@ -41,10 +41,10 @@ public:
 
 	bool CreateDepthBuffer(DepthBuffer &depth, uint32_t width, uint32_t height,
 		XUSG::Format format, const wchar_t* name = L"Depth");
-	bool CreateVertexBuffer(const XUSG::CommandList* pCommandList, XUSG::VertexBuffer& vb,
+	bool CreateVertexBuffer(XUSG::CommandList* pCommandList, XUSG::VertexBuffer& vb,
 		std::vector<XUSG::Resource>& uploaders, const void* pData, uint32_t numVert,
 		uint32_t srtide, const wchar_t* name = L"VertexBuffer") const;
-	bool CreateIndexBuffer(const XUSG::CommandList* pCommandList, XUSG::IndexBuffer& ib,
+	bool CreateIndexBuffer(XUSG::CommandList* pCommandList, XUSG::IndexBuffer& ib,
 		std::vector<XUSG::Resource>& uploaders, const void* pData, uint32_t numIdx,
 		XUSG::Format format, const wchar_t* name = L"IndexBuffer");
 	XUSG::DescriptorTableCache& GetDescriptorTableCache();
@@ -111,7 +111,7 @@ protected:
 	};
 
 	bool createPipelines();
-	bool createResetBuffer(const XUSG::CommandList* pCommandList, std::vector<XUSG::Resource>& uploaders);
+	bool createResetBuffer(XUSG::CommandList* pCommandList, std::vector<XUSG::Resource>& uploaders);
 	bool createCommandLayout();
 	bool createDescriptorTables();
 
@@ -120,10 +120,10 @@ protected:
 
 	XUSG::Device m_device;
 
-	XUSG::ShaderPool_uptr				m_shaderPool;
-	XUSG::Compute::PipelineCache_uptr	m_computePipelineCache;
-	XUSG::PipelineLayoutCache_uptr		m_pipelineLayoutCache;
-	XUSG::DescriptorTableCache_uptr		m_descriptorTableCache;
+	XUSG::ShaderPool::uptr				m_shaderPool;
+	XUSG::Compute::PipelineCache::uptr	m_computePipelineCache;
+	XUSG::PipelineLayoutCache::uptr		m_pipelineLayoutCache;
+	XUSG::DescriptorTableCache::uptr		m_descriptorTableCache;
 
 	XUSG::PipelineLayout	m_pipelineLayouts[NUM_STAGE];
 	XUSG::Pipeline			m_pipelines[NUM_STAGE];
@@ -139,10 +139,10 @@ protected:
 	XUSG::DescriptorTable	m_uavTables[NUM_UAV_TABLE];
 	XUSG::DescriptorTable	m_samplerTable;
 
-	XUSG::ConstantBuffer_uptr	m_cbMatrices;
-	XUSG::ConstantBuffer_uptr	m_cbPerFrame;
-	XUSG::ConstantBuffer_uptr	m_cbPerObject;
-	XUSG::ConstantBuffer_uptr	m_cbBound;
+	XUSG::ConstantBuffer::uptr	m_cbMatrices;
+	XUSG::ConstantBuffer::uptr	m_cbPerFrame;
+	XUSG::ConstantBuffer::uptr	m_cbPerObject;
+	XUSG::ConstantBuffer::uptr	m_cbBound;
 
 	XUSG::Descriptor		m_vertexBufferView;
 	XUSG::Descriptor		m_indexBufferView;
@@ -150,14 +150,14 @@ protected:
 	DepthBuffer*			m_pDepth;
 
 	std::vector<AttributeInfo> m_attribInfo;
-	std::vector<XUSG::TypedBuffer_uptr> m_vertexAttribs;
-	XUSG::StructuredBuffer_uptr	m_vertexCompletions;
-	XUSG::StructuredBuffer_uptr	m_vertexPos;
-	XUSG::StructuredBuffer_uptr	m_tilePrimCountReset;
-	XUSG::StructuredBuffer_uptr	m_binPrimCount;
-	XUSG::StructuredBuffer_uptr	m_binPrimitives;
-	XUSG::StructuredBuffer_uptr	m_tilePrimCount;
-	XUSG::StructuredBuffer_uptr	m_tilePrimitives;
+	std::vector<XUSG::TypedBuffer::uptr> m_vertexAttribs;
+	XUSG::StructuredBuffer::uptr	m_vertexCompletions;
+	XUSG::StructuredBuffer::uptr	m_vertexPos;
+	XUSG::StructuredBuffer::uptr	m_tilePrimCountReset;
+	XUSG::StructuredBuffer::uptr	m_binPrimCount;
+	XUSG::StructuredBuffer::uptr	m_binPrimitives;
+	XUSG::StructuredBuffer::uptr	m_tilePrimCount;
+	XUSG::StructuredBuffer::uptr	m_tilePrimitives;
 
 	XUSG::Viewport			m_viewport;
 

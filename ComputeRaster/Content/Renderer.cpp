@@ -18,7 +18,7 @@ Renderer::~Renderer()
 {
 }
 
-bool Renderer::Init(const CommandList* pCommandList, uint32_t width,
+bool Renderer::Init(CommandList* pCommandList, uint32_t width,
 	uint32_t height, vector<Resource>& uploaders, const char* fileName,
 	const XMFLOAT4& posScale)
 {
@@ -79,7 +79,7 @@ bool Renderer::Init(const CommandList* pCommandList, uint32_t width,
 		m_cbMaterial = ConstantBuffer::MakeUnique();
 		N_RETURN(m_cbMaterial->Create(m_device, sizeof(XMFLOAT3), 1, nullptr, MemoryType::DEFAULT), false);
 		uploaders.emplace_back();
-		m_cbMaterial->Upload(*pCommandList, uploaders.back(), &baseColor, sizeof(XMFLOAT4));
+		m_cbMaterial->Upload(pCommandList, uploaders.back(), &baseColor, sizeof(XMFLOAT4));
 
 		const auto utilCbvTable = Util::DescriptorTable::MakeUnique();
 		utilCbvTable->SetDescriptors(0, 1, &m_cbMaterial->GetCBV());
