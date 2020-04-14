@@ -4,9 +4,6 @@
 
 #pragma once
 
-#define DLL_EXPORT					__declspec(dllexport)
-#define DLL_IMPORT					__declspec(dllimport)
-
 #define H_RETURN(x, o, m, r)		{ const auto hr = x; if (FAILED(hr)) { o << m << std::endl; return r; } }
 #define V_RETURN(x, o, r)			H_RETURN(x, o, HrToString(hr), r)
 
@@ -165,7 +162,7 @@ namespace XUSG
 
 	// Device
 	MIDL_INTERFACE("189819f1-1db6-4b57-be54-1821339b85f7")
-		DLL_EXPORT DX12Device : public ID3D12Device
+		DLL_INTERFACE DX12Device : public ID3D12Device
 	{
 		bool GetCommandQueue(CommandQueue & commandQueue, CommandListType type, CommandQueueFlag flags, int32_t priority = 0, uint32_t nodeMask = 0);
 		bool GetCommandAllocator(CommandAllocator& commandAllocator, CommandListType type);
@@ -203,7 +200,6 @@ namespace XUSG
 
 	// DX12 enum transfer functions
 	DXGI_FORMAT GetDXGIFormat(Format format);
-	Format GetFormatFromDXGI(DXGI_FORMAT format);
 
 	D3D12_COMMAND_LIST_TYPE GetDX12CommandListType(CommandListType commandListType);
 	D3D12_INPUT_CLASSIFICATION GetDX12InputClassification(InputClassification inputClassification);
@@ -211,9 +207,7 @@ namespace XUSG
 	D3D12_PRIMITIVE_TOPOLOGY_TYPE GetDX12PrimitiveTopologyType(PrimitiveTopologyType primitiveTopologyType);
 	D3D_PRIMITIVE_TOPOLOGY GetDX12PrimitiveTopology(PrimitiveTopology primitiveTopology);
 	D3D12_INDIRECT_ARGUMENT_TYPE GetDX12IndirectArgumentType(IndirectArgumentType indirectArgumentType);
-
 	D3D12_RESOURCE_DIMENSION GetDX12ResourceDimension(ResourceDimension resourceDimension);
-	ResourceDimension GetResourceDimensionFromDX12(uint32_t resourceDimension);
 
 	D3D12_COMMAND_QUEUE_FLAGS GetDX12CommandQueueFlag(CommandQueueFlag commandQueueFlag);
 	D3D12_COMMAND_QUEUE_FLAGS GetDX12CommandQueueFlags(CommandQueueFlag commandQueueFlags);
