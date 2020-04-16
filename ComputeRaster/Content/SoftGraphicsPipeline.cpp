@@ -137,29 +137,29 @@ void SoftGraphicsPipeline::SetRenderTargets(uint32_t numRTs, Texture2D* pColorTa
 	m_outTables.resize(pDepth ? numRTs + 3 : numRTs);
 	for (auto i = 0u; i < numRTs; ++i)
 	{
-		const auto utilUavTable = Util::DescriptorTable::MakeUnique();
-		utilUavTable->SetDescriptors(0, 1, &pColorTarget->GetUAV());
-		m_outTables[i] = utilUavTable->GetCbvSrvUavTable(*m_descriptorTableCache);
+		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
+		descriptorTable->SetDescriptors(0, 1, &pColorTarget->GetUAV());
+		m_outTables[i] = descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache);
 	}
 
 	if (pDepth)
 	{
 		{
-			const auto utilUavTable = Util::DescriptorTable::MakeUnique();
-			utilUavTable->SetDescriptors(0, 1, &pDepth->PixelZ->GetUAV());
-			m_outTables[m_outTables.size() - 1] = utilUavTable->GetCbvSrvUavTable(*m_descriptorTableCache);
+			const auto descriptorTable = Util::DescriptorTable::MakeUnique();
+			descriptorTable->SetDescriptors(0, 1, &pDepth->PixelZ->GetUAV());
+			m_outTables[m_outTables.size() - 1] = descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache);
 		}
 
 		{
-			const auto utilUavTable = Util::DescriptorTable::MakeUnique();
-			utilUavTable->SetDescriptors(0, 1, &pDepth->TileZ->GetUAV());
-			m_outTables[m_outTables.size() - 2] = utilUavTable->GetCbvSrvUavTable(*m_descriptorTableCache);
+			const auto descriptorTable = Util::DescriptorTable::MakeUnique();
+			descriptorTable->SetDescriptors(0, 1, &pDepth->TileZ->GetUAV());
+			m_outTables[m_outTables.size() - 2] = descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache);
 		}
 
 		{
-			const auto utilUavTable = Util::DescriptorTable::MakeUnique();
-			utilUavTable->SetDescriptors(0, 1, &pDepth->BinZ->GetUAV());
-			m_outTables[m_outTables.size() - 3] = utilUavTable->GetCbvSrvUavTable(*m_descriptorTableCache);
+			const auto descriptorTable = Util::DescriptorTable::MakeUnique();
+			descriptorTable->SetDescriptors(0, 1, &pDepth->BinZ->GetUAV());
+			m_outTables[m_outTables.size() - 3] = descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache);
 		}
 	}
 }
@@ -202,27 +202,27 @@ void SoftGraphicsPipeline::ClearDepth(const float clearValue)
 
 void SoftGraphicsPipeline::Draw(CommandList* pCommandList, uint32_t numVertices)
 {
-	const auto utilSrvTable = Util::DescriptorTable::MakeUnique();
+	const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 	const Descriptor descriptors[] =
 	{
 		m_vertexBufferView
 	};
-	utilSrvTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
-	m_srvTables[SRV_TABLE_VS] = utilSrvTable->GetCbvSrvUavTable(*m_descriptorTableCache);
+	descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
+	m_srvTables[SRV_TABLE_VS] = descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache);
 
 	draw(pCommandList, numVertices, VERTEX_PROCESS);
 }
 
 void SoftGraphicsPipeline::DrawIndexed(CommandList* pCommandList, uint32_t numIndices)
 {
-	const auto utilSrvTable = Util::DescriptorTable::MakeUnique();
+	const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 	const Descriptor descriptors[] =
 	{
 		m_vertexBufferView,
 		m_indexBufferView
 	};
-	utilSrvTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
-	m_srvTables[SRV_TABLE_VS] = utilSrvTable->GetCbvSrvUavTable(*m_descriptorTableCache);
+	descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
+	m_srvTables[SRV_TABLE_VS] = descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache);
 
 	draw(pCommandList, numIndices, VERTEX_INDEXED);
 }
@@ -382,52 +382,52 @@ bool SoftGraphicsPipeline::createCommandLayout()
 bool SoftGraphicsPipeline::createDescriptorTables()
 {
 	{
-		const auto utilSrvTable = Util::DescriptorTable::MakeUnique();
-		const Descriptor srvs[] =
+		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
+		const Descriptor descriptors[] =
 		{
 			m_binPrimitives->GetSRV()
 		};
-		utilSrvTable->SetDescriptors(0, static_cast<uint32_t>(size(srvs)), srvs);
-		X_RETURN(m_srvTables[SRV_TABLE_TR], utilSrvTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
+		X_RETURN(m_srvTables[SRV_TABLE_TR], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
 	}
 
 	const auto numAttribs = static_cast<uint32_t>(m_vertexAttribs.size());
 	{
-		const auto utilSrvTable = Util::DescriptorTable::MakeUnique();
-		vector<Descriptor> srvs;
-		srvs.reserve(numAttribs + 1);
-		srvs.push_back(m_tilePrimitives->GetSRV());
-		for (const auto& attrib : m_vertexAttribs) srvs.push_back(attrib->GetSRV());
-		utilSrvTable->SetDescriptors(0, static_cast<uint32_t>(srvs.size()), srvs.data());
-		X_RETURN(m_srvTables[SRV_TABLE_PS], utilSrvTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
+		vector<Descriptor> descriptors;
+		descriptors.reserve(numAttribs + 1);
+		descriptors.push_back(m_tilePrimitives->GetSRV());
+		for (const auto& attrib : m_vertexAttribs) descriptors.push_back(attrib->GetSRV());
+		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(descriptors.size()), descriptors.data());
+		X_RETURN(m_srvTables[SRV_TABLE_PS], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
 	}
 
 	{
-		const auto utilUavTable = Util::DescriptorTable::MakeUnique();
-		vector<Descriptor> uavs;
-		uavs.reserve(numAttribs + 1);
-		uavs.push_back(m_vertexPos->GetUAV());
-		for (const auto& attrib : m_vertexAttribs) uavs.push_back(attrib->GetUAV());
-		utilUavTable->SetDescriptors(0, static_cast<uint32_t>(uavs.size()), uavs.data());
-		X_RETURN(m_uavTables[UAV_TABLE_VS], utilUavTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
+		vector<Descriptor> descriptors;
+		descriptors.reserve(numAttribs + 1);
+		descriptors.push_back(m_vertexPos->GetUAV());
+		for (const auto& attrib : m_vertexAttribs) descriptors.push_back(attrib->GetUAV());
+		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(descriptors.size()), descriptors.data());
+		X_RETURN(m_uavTables[UAV_TABLE_VS], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
 	}
 
 	{
-		const auto utilUavTable = Util::DescriptorTable::MakeUnique();
-		vector<Descriptor> uavs;
-		uavs.reserve(7);
-		uavs.push_back(m_vertexPos->GetUAV()),
-		uavs.push_back(m_tilePrimCount->GetUAV());
-		uavs.push_back(m_tilePrimitives->GetUAV());
+		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
+		vector<Descriptor> descriptors;
+		descriptors.reserve(7);
+		descriptors.push_back(m_vertexPos->GetUAV()),
+		descriptors.push_back(m_tilePrimCount->GetUAV());
+		descriptors.push_back(m_tilePrimitives->GetUAV());
 		if (m_pDepth)
 		{
-			uavs.push_back(m_pDepth->TileZ->GetUAV());
-			uavs.push_back(m_pDepth->BinZ->GetUAV());
+			descriptors.push_back(m_pDepth->TileZ->GetUAV());
+			descriptors.push_back(m_pDepth->BinZ->GetUAV());
 		}
-		uavs.push_back(m_binPrimCount->GetUAV());
-		uavs.push_back(m_binPrimitives->GetUAV());
-		utilUavTable->SetDescriptors(0, static_cast<uint32_t>(uavs.size()), uavs.data());
-		X_RETURN(m_uavTables[UAV_TABLE_RS], utilUavTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+		descriptors.push_back(m_binPrimCount->GetUAV());
+		descriptors.push_back(m_binPrimitives->GetUAV());
+		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(descriptors.size()), descriptors.data());
+		X_RETURN(m_uavTables[UAV_TABLE_RS], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
 	}
 
 	return true;

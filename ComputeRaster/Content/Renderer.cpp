@@ -58,9 +58,9 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width,
 	N_RETURN(m_cbMatrices->Create(m_device, sizeof(XMFLOAT4X4[2]) * frameCount, frameCount), false);
 	for (auto i = 0u; i < SoftGraphicsPipeline::FrameCount; ++i)
 	{
-		const auto utilCbvTable = Util::DescriptorTable::MakeUnique();
-		utilCbvTable->SetDescriptors(0, 1, &m_cbMatrices->GetCBV(i));
-		m_cbvTables[CBV_TABLE_MATRICES + i] = utilCbvTable->GetCbvSrvUavTable(m_softGraphicsPipeline->GetDescriptorTableCache());
+		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
+		descriptorTable->SetDescriptors(0, 1, &m_cbMatrices->GetCBV(i));
+		m_cbvTables[CBV_TABLE_MATRICES + i] = descriptorTable->GetCbvSrvUavTable(m_softGraphicsPipeline->GetDescriptorTableCache());
 	}
 
 	// Per-frame lighting
@@ -68,9 +68,9 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width,
 	N_RETURN(m_cbLighting->Create(m_device, sizeof(XMFLOAT4[4]) * frameCount, frameCount), false);
 	for (auto i = 0u; i < SoftGraphicsPipeline::FrameCount; ++i)
 	{
-		const auto utilCbvTable = Util::DescriptorTable::MakeUnique();
-		utilCbvTable->SetDescriptors(0, 1, &m_cbLighting->GetCBV(i));
-		m_cbvTables[CBV_TABLE_LIGHTING + i] = utilCbvTable->GetCbvSrvUavTable(m_softGraphicsPipeline->GetDescriptorTableCache());
+		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
+		descriptorTable->SetDescriptors(0, 1, &m_cbLighting->GetCBV(i));
+		m_cbvTables[CBV_TABLE_LIGHTING + i] = descriptorTable->GetCbvSrvUavTable(m_softGraphicsPipeline->GetDescriptorTableCache());
 	}
 
 	// Immutable material
@@ -81,9 +81,9 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width,
 		uploaders.emplace_back();
 		m_cbMaterial->Upload(pCommandList, uploaders.back(), &baseColor, sizeof(XMFLOAT4));
 
-		const auto utilCbvTable = Util::DescriptorTable::MakeUnique();
-		utilCbvTable->SetDescriptors(0, 1, &m_cbMaterial->GetCBV());
-		m_cbvTables[CBV_TABLE_MATERIAL] = utilCbvTable->GetCbvSrvUavTable(m_softGraphicsPipeline->GetDescriptorTableCache());
+		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
+		descriptorTable->SetDescriptors(0, 1, &m_cbMaterial->GetCBV());
+		m_cbvTables[CBV_TABLE_MATERIAL] = descriptorTable->GetCbvSrvUavTable(m_softGraphicsPipeline->GetDescriptorTableCache());
 	}
 
 	m_vb = VertexBuffer::MakeUnique();
