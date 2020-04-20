@@ -129,18 +129,18 @@ void ComputeRaster::LoadAssets()
 {
 	// Create the command list.
 	m_commandList = CommandList::MakeUnique();
-	N_RETURN(m_device->GetCommandList(m_commandList->GetCommandList(), 0, CommandListType::DIRECT,
+	const auto pCommandList = m_commandList.get();
+	N_RETURN(m_device->GetCommandList(pCommandList, 0, CommandListType::DIRECT,
 		m_commandAllocators[m_frameIndex], nullptr), ThrowIfFailed(E_FAIL));
 
 	vector<Resource> uploaders(0);
 	X_RETURN(m_renderer, make_unique<Renderer>(m_device), ThrowIfFailed(E_FAIL));
-	N_RETURN(m_renderer->Init(m_commandList.get(), m_width, m_height, uploaders,
+	N_RETURN(m_renderer->Init(pCommandList, m_width, m_height, uploaders,
 		m_meshFileName.c_str(), m_meshPosScale), ThrowIfFailed(E_FAIL));
 
 	// Close the command list and execute it to begin the initial GPU setup.
-	ThrowIfFailed(m_commandList->Close());
-	BaseCommandList* const ppCommandLists[] = { m_commandList->GetCommandList().get() };
-	m_commandQueue->ExecuteCommandLists(static_cast<uint32_t>(size(ppCommandLists)), ppCommandLists);
+	ThrowIfFailed(pCommandList->Close());
+	m_commandQueue->SubmitCommandList(pCommandList);
 
 	// Create synchronization objects and wait until assets have been uploaded to the GPU.
 	{
@@ -198,8 +198,7 @@ void ComputeRaster::OnRender()
 	PopulateCommandList();
 
 	// Execute the command list.
-	BaseCommandList* const ppCommandLists[] = { m_commandList->GetCommandList().get() };
-	m_commandQueue->ExecuteCommandLists(static_cast<uint32_t>(size(ppCommandLists)), ppCommandLists);
+	m_commandQueue->SubmitCommandList(m_commandList.get());
 
 	// Present the frame.
 	ThrowIfFailed(m_swapChain->Present(0, 0));
@@ -322,10 +321,11 @@ void ComputeRaster::PopulateCommandList()
 	// However, when ExecuteCommandList() is called on a particular command 
 	// list, that command list can then be reset at any time and must be before 
 	// re-recording.
-	ThrowIfFailed(m_commandList->Reset(m_commandAllocators[m_frameIndex], nullptr));
+	const auto pCommandList = m_commandList.get();
+	ThrowIfFailed(pCommandList->Reset(m_commandAllocators[m_frameIndex], nullptr));
 
 	// Record commands.
-	m_renderer->Render(m_commandList.get(), m_frameIndex);
+	m_renderer->Render(pCommandList, m_frameIndex);
 
 	// Copy to back buffer.
 	{
@@ -336,16 +336,16 @@ void ComputeRaster::PopulateCommandList()
 		ResourceBarrier barriers[2];
 		auto numBarriers = m_renderTargets[m_frameIndex]->SetBarrier(barriers, ResourceState::COPY_DEST);
 		numBarriers = colorTarget.SetBarrier(barriers, ResourceState::COPY_SOURCE, numBarriers);
-		m_commandList->Barrier(numBarriers, barriers);
+		pCommandList->Barrier(numBarriers, barriers);
 
-		m_commandList->CopyTextureRegion(dst, 0, 0, 0, src);
+		pCommandList->CopyTextureRegion(dst, 0, 0, 0, src);
 
 		// Indicate that the back buffer will now be used to present.
 		numBarriers = m_renderTargets[m_frameIndex]->SetBarrier(barriers, ResourceState::PRESENT);
-		m_commandList->Barrier(numBarriers, barriers);
+		pCommandList->Barrier(numBarriers, barriers);
 	}
 
-	ThrowIfFailed(m_commandList->Close());
+	ThrowIfFailed(pCommandList->Close());
 }
 
 // Wait for pending GPU work to complete.
