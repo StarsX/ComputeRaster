@@ -11,4 +11,4 @@ Hot keys:
 [Space] pause/play animation
 
 Prerequisite:
-https://github.com/StarsX/XUSGCore
+https://github.com/StarsX/XUSG
