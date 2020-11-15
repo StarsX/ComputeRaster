@@ -327,8 +327,8 @@ void ComputeRaster::PopulateCommandList()
 	// Copy to back buffer.
 	{
 		auto& colorTarget = m_renderer->GetColorTarget();
-		const TextureCopyLocation dst(m_renderTargets[m_frameIndex]->GetResource().get(), 0);
-		const TextureCopyLocation src(colorTarget.GetResource().get(), 0);
+		const TextureCopyLocation dst(m_renderTargets[m_frameIndex]->GetResource(), 0);
+		const TextureCopyLocation src(colorTarget.GetResource(), 0);
 
 		ResourceBarrier barriers[2];
 		auto numBarriers = m_renderTargets[m_frameIndex]->SetBarrier(barriers, ResourceState::COPY_DEST);
