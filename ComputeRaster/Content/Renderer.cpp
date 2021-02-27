@@ -40,15 +40,15 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width,
 	
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
-		pipelineLayout->SetRange(0, DescriptorType::CBV, 1, 0);
+		pipelineLayout->SetRange(0, DescriptorType::CBV, 1, 0, 0, DescriptorFlag::DATA_STATIC);
 		m_softGraphicsPipeline->SetAttribute(0, sizeof(uint32_t[4]), Format::R32G32B32A32_FLOAT, L"Normal");
 		N_RETURN(m_softGraphicsPipeline->CreateVertexShaderLayout(pipelineLayout.get(), 1), false);
 	}
 
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
-		pipelineLayout->SetRange(0, DescriptorType::CBV, 1, 0);
-		pipelineLayout->SetRange(1, DescriptorType::CBV, 1, 1);
+		pipelineLayout->SetRange(0, DescriptorType::CBV, 1, 0, 0, DescriptorFlag::DATA_STATIC);
+		pipelineLayout->SetRange(1, DescriptorType::CBV, 1, 1, 0, DescriptorFlag::DATA_STATIC);
 		N_RETURN(m_softGraphicsPipeline->CreatePixelShaderLayout(pipelineLayout.get(), true, 1, 2, 1), false);
 	}
 

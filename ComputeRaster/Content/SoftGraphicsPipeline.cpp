@@ -94,8 +94,7 @@ bool SoftGraphicsPipeline::CreatePixelShaderLayout(Util::PipelineLayout* pPipeli
 	{
 		const auto numSRVs = static_cast<uint32_t>(m_vertexAttribs.size()) + 1;
 		pPipelineLayout->SetConstants(slotCount, SizeOfInUint32(CBViewPort), cbvBindingMax + 1);
-		pPipelineLayout->SetRange(slotCount + 1, DescriptorType::SRV, numSRVs,
-			srvBindingMax + 1, 0, DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
+		pPipelineLayout->SetRange(slotCount + 1, DescriptorType::SRV, numSRVs, srvBindingMax + 1);
 		pPipelineLayout->SetRange(slotCount + 2, DescriptorType::UAV, 1,
 			uavBindingMax + 1, 0, DescriptorFlag::DESCRIPTORS_VOLATILE |
 			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
