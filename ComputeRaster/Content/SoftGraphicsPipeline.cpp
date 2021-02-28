@@ -95,9 +95,8 @@ bool SoftGraphicsPipeline::CreatePixelShaderLayout(Util::PipelineLayout* pPipeli
 		const auto numSRVs = static_cast<uint32_t>(m_vertexAttribs.size()) + 1;
 		pPipelineLayout->SetConstants(slotCount, SizeOfInUint32(CBViewPort), cbvBindingMax + 1);
 		pPipelineLayout->SetRange(slotCount + 1, DescriptorType::SRV, numSRVs, srvBindingMax + 1);
-		pPipelineLayout->SetRange(slotCount + 2, DescriptorType::UAV, 1,
-			uavBindingMax + 1, 0, DescriptorFlag::DESCRIPTORS_VOLATILE |
-			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
+		pPipelineLayout->SetRange(slotCount + 2, DescriptorType::UAV, 1, uavBindingMax + 1, 0,
+			DescriptorFlag::DESCRIPTORS_VOLATILE | DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		pPipelineLayout->SetRange(slotCount + 3, DescriptorType::UAV, hasDepth ? numRTs + 2 : numRTs,
 			uavBindingMax + 2, 0, DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		X_RETURN(m_pipelineLayouts[PIX_RASTER], pPipelineLayout->GetPipelineLayout(
@@ -284,9 +283,8 @@ bool SoftGraphicsPipeline::createPipelines()
 	{
 		const auto utilPipelineLayout = Util::PipelineLayout::MakeUnique();
 		utilPipelineLayout->SetConstants(0, SizeOfInUint32(CBViewPort), 0);
-		utilPipelineLayout->SetRange(1, DescriptorType::UAV,
-			7, 0, 0, DescriptorFlag::DESCRIPTORS_VOLATILE |
-			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
+		utilPipelineLayout->SetRange(1, DescriptorType::UAV, 7, 0, 0,
+			DescriptorFlag::DESCRIPTORS_VOLATILE | DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		X_RETURN(m_pipelineLayouts[BIN_RASTER], utilPipelineLayout->GetPipelineLayout(
 			*m_pipelineLayoutCache, PipelineLayoutFlag::NONE, L"BinRasterLayout"), false);
 	}
@@ -294,11 +292,9 @@ bool SoftGraphicsPipeline::createPipelines()
 	{
 		const auto utilPipelineLayout = Util::PipelineLayout::MakeUnique();
 		utilPipelineLayout->SetConstants(0, SizeOfInUint32(CBViewPort), 0);
-		utilPipelineLayout->SetRange(1, DescriptorType::SRV, 1, 0, 0,
-			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
-		utilPipelineLayout->SetRange(2, DescriptorType::UAV,
-			5, 0, 0, DescriptorFlag::DESCRIPTORS_VOLATILE |
-			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
+		utilPipelineLayout->SetRange(1, DescriptorType::SRV, 1, 0, 0, DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
+		utilPipelineLayout->SetRange(2, DescriptorType::UAV, 5, 0, 0,
+			DescriptorFlag::DESCRIPTORS_VOLATILE | DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		X_RETURN(m_pipelineLayouts[TILE_RASTER], utilPipelineLayout->GetPipelineLayout(
 			*m_pipelineLayoutCache, PipelineLayoutFlag::NONE, L"TileRasterLayout"), false);
 	}
