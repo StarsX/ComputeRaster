@@ -230,7 +230,7 @@ void ObjLoader::loadIndices(FILE* pFile, uint32_t& numTri, uint32_t numTexc,
 
 	const auto numVert = GetNumVertices();
 
-	for (auto i = 0ui8; i < 3; ++i)
+	for (uint8_t i = 0; i < 3; ++i)
 	{
 		fscanf_s(pFile, "%lld", &vi);
 		v[i] = static_cast<uint32_t>(vi < 0 ? vi + numVert : vi - 1);
