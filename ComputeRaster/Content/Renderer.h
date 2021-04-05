@@ -16,9 +16,9 @@ public:
 		std::vector<XUSG::Resource>& uploaders, const char* fileName,
 		const DirectX::XMFLOAT4& posScale);
 
-	void UpdateFrame(uint32_t frameIndex, DirectX::CXMMATRIX view,
+	void UpdateFrame(uint8_t frameIndex, DirectX::CXMMATRIX view,
 		DirectX::CXMMATRIX proj, const DirectX::XMFLOAT3& eyePt, double time);
-	void Render(XUSG::CommandList* pCommandList, uint32_t frameIndex);
+	void Render(XUSG::CommandList* pCommandList, uint8_t frameIndex);
 
 	XUSG::Texture2D& GetColorTarget();
 

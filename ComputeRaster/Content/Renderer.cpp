@@ -120,7 +120,7 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width,
 	return true;
 }
 
-void Renderer::UpdateFrame(uint32_t frameIndex, CXMMATRIX view,
+void Renderer::UpdateFrame(uint8_t frameIndex, CXMMATRIX view,
 	CXMMATRIX proj, const XMFLOAT3& eyePt, double time)
 {
 	{
@@ -153,7 +153,7 @@ void Renderer::UpdateFrame(uint32_t frameIndex, CXMMATRIX view,
 	}
 }
 
-void Renderer::Render(CommandList* pCommandList, uint32_t frameIndex)
+void Renderer::Render(CommandList* pCommandList, uint8_t frameIndex)
 {
 	// Compute raster rendering
 	const float clearColor[] = { CLEAR_COLOR, 0.0f };
