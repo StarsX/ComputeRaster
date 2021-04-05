@@ -49,7 +49,7 @@ public:
 		XUSG::Format format, const wchar_t* name = L"IndexBuffer");
 	XUSG::DescriptorTableCache& GetDescriptorTableCache();
 
-	static const uint32_t FrameCount = FRAME_COUNT;
+	static const uint8_t FrameCount = FRAME_COUNT;
 
 protected:
 	enum StageIndex : uint8_t

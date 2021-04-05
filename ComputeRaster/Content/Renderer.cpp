@@ -56,7 +56,7 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width,
 	const auto& frameCount = SoftGraphicsPipeline::FrameCount;
 	m_cbMatrices = ConstantBuffer::MakeUnique();
 	N_RETURN(m_cbMatrices->Create(m_device, sizeof(XMFLOAT4X4[2]) * frameCount, frameCount), false);
-	for (auto i = 0u; i < SoftGraphicsPipeline::FrameCount; ++i)
+	for (uint8_t i = 0; i < frameCount; ++i)
 	{
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		descriptorTable->SetDescriptors(0, 1, &m_cbMatrices->GetCBV(i));
@@ -66,7 +66,7 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width,
 	// Per-frame lighting
 	m_cbLighting = ConstantBuffer::MakeUnique();
 	N_RETURN(m_cbLighting->Create(m_device, sizeof(XMFLOAT4[4]) * frameCount, frameCount), false);
-	for (auto i = 0u; i < SoftGraphicsPipeline::FrameCount; ++i)
+	for (uint8_t i = 0; i < frameCount; ++i)
 	{
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		descriptorTable->SetDescriptors(0, 1, &m_cbLighting->GetCBV(i));
