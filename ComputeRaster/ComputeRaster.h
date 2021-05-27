@@ -44,11 +44,11 @@ public:
 	virtual void ParseCommandLineArgs(wchar_t* argv[], int argc);
 
 private:
-	XUSG::SwapChain				m_swapChain;
-	XUSG::CommandAllocator		m_commandAllocators[SoftGraphicsPipeline::FrameCount];
-	XUSG::CommandQueue			m_commandQueue;
+	XUSG::SwapChain::uptr			m_swapChain;
+	XUSG::CommandAllocator::uptr	m_commandAllocators[SoftGraphicsPipeline::FrameCount];
+	XUSG::CommandQueue::uptr		m_commandQueue;
 
-	XUSG::Device				m_device;
+	XUSG::Device::sptr			m_device;
 	XUSG::RenderTarget::uptr	m_renderTargets[SoftGraphicsPipeline::FrameCount];
 	XUSG::CommandList::uptr		m_commandList;
 
@@ -62,7 +62,7 @@ private:
 	// Synchronization objects.
 	uint32_t	m_frameIndex;
 	HANDLE		m_fenceEvent;
-	XUSG::Fence	m_fence;
+	XUSG::Fence::uptr m_fence;
 	uint64_t	m_fenceValues[SoftGraphicsPipeline::FrameCount];
 
 	// Application state

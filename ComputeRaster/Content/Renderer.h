@@ -9,18 +9,18 @@
 class Renderer
 {
 public:
-	Renderer(const XUSG::Device& device);
+	Renderer(const XUSG::Device::sptr& device);
 	virtual ~Renderer();
 
 	bool Init(XUSG::CommandList* pCommandList, uint32_t width, uint32_t height,
-		std::vector<XUSG::Resource>& uploaders, const char* fileName,
+		std::vector<XUSG::Resource::uptr>& uploaders, const char* fileName,
 		const DirectX::XMFLOAT4& posScale);
 
 	void UpdateFrame(uint8_t frameIndex, DirectX::CXMMATRIX view,
 		DirectX::CXMMATRIX proj, const DirectX::XMFLOAT3& eyePt, double time);
 	void Render(XUSG::CommandList* pCommandList, uint8_t frameIndex);
 
-	XUSG::Texture2D& GetColorTarget();
+	XUSG::Texture2D* GetColorTarget() const;
 
 protected:
 	enum CBVTable : uint8_t
@@ -32,7 +32,7 @@ protected:
 		NUM_CBV_TABLE
 	};
 
-	XUSG::Device m_device;
+	XUSG::Device::sptr m_device;
 
 	std::unique_ptr<SoftGraphicsPipeline> m_softGraphicsPipeline;
 	XUSG::VertexBuffer::uptr	m_vb;

@@ -17,10 +17,10 @@ public:
 		XUSG::Texture2D::uptr BinZ;
 	};
 
-	SoftGraphicsPipeline(const XUSG::Device& device);
+	SoftGraphicsPipeline(const XUSG::Device::sptr& device);
 	virtual ~SoftGraphicsPipeline();
 
-	bool Init(XUSG::CommandList* pCommandList, std::vector<XUSG::Resource>& uploaders);
+	bool Init(XUSG::CommandList* pCommandList, std::vector<XUSG::Resource::uptr>& uploaders);
 	bool CreateVertexShaderLayout(XUSG::Util::PipelineLayout* pPipelineLayout,
 		uint32_t slotCount = 0, int32_t srvBindingMax = -1, int32_t uavBindingMax = -1);
 	bool CreatePixelShaderLayout(XUSG::Util::PipelineLayout* pPipelineLayout,
@@ -42,12 +42,12 @@ public:
 	bool CreateDepthBuffer(DepthBuffer &depth, uint32_t width, uint32_t height,
 		XUSG::Format format, const wchar_t* name = L"Depth");
 	bool CreateVertexBuffer(XUSG::CommandList* pCommandList, XUSG::VertexBuffer& vb,
-		std::vector<XUSG::Resource>& uploaders, const void* pData, uint32_t numVert,
+		std::vector<XUSG::Resource::uptr>& uploaders, const void* pData, uint32_t numVert,
 		uint32_t srtide, const wchar_t* name = L"VertexBuffer") const;
 	bool CreateIndexBuffer(XUSG::CommandList* pCommandList, XUSG::IndexBuffer& ib,
-		std::vector<XUSG::Resource>& uploaders, const void* pData, uint32_t numIdx,
+		std::vector<XUSG::Resource::uptr>& uploaders, const void* pData, uint32_t numIdx,
 		XUSG::Format format, const wchar_t* name = L"IndexBuffer");
-	XUSG::DescriptorTableCache& GetDescriptorTableCache();
+	XUSG::DescriptorTableCache* GetDescriptorTableCache() const;
 
 	static const uint8_t FrameCount = FRAME_COUNT;
 
@@ -111,23 +111,23 @@ protected:
 	};
 
 	bool createPipelines();
-	bool createResetBuffer(XUSG::CommandList* pCommandList, std::vector<XUSG::Resource>& uploaders);
+	bool createResetBuffer(XUSG::CommandList* pCommandList, std::vector<XUSG::Resource::uptr>& uploaders);
 	bool createCommandLayout();
 	bool createDescriptorTables();
 
 	void draw(XUSG::CommandList* pCommandList, uint32_t num, StageIndex vs);
 	void rasterizer(XUSG::CommandList* pCommandList, uint32_t numTriangles);
 
-	XUSG::Device m_device;
+	XUSG::Device::sptr m_device;
 
 	XUSG::ShaderPool::uptr				m_shaderPool;
 	XUSG::Compute::PipelineCache::uptr	m_computePipelineCache;
 	XUSG::PipelineLayoutCache::uptr		m_pipelineLayoutCache;
 	XUSG::DescriptorTableCache::uptr		m_descriptorTableCache;
 
-	XUSG::PipelineLayout	m_pipelineLayouts[NUM_STAGE];
-	XUSG::Pipeline			m_pipelines[NUM_STAGE];
-	XUSG::CommandLayout		m_commandLayout;
+	XUSG::PipelineLayout		m_pipelineLayouts[NUM_STAGE];
+	XUSG::Pipeline				m_pipelines[NUM_STAGE];
+	XUSG::CommandLayout::uptr	m_commandLayout;
 
 	std::vector<ClearInfo> m_clears;
 	std::vector<XUSG::DescriptorTable> m_extVsTables;
