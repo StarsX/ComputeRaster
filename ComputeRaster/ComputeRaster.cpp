@@ -108,7 +108,7 @@ void ComputeRaster::LoadPipeline()
 	{
 		m_renderTargets[n] = RenderTarget::MakeUnique();
 		N_RETURN(m_renderTargets[n]->CreateFromSwapChain(m_device.get(), m_swapChain.get(), n), ThrowIfFailed(E_FAIL));
-		
+
 		m_commandAllocators[n] = CommandAllocator::MakeUnique();
 		N_RETURN(m_commandAllocators[n]->Create(m_device.get(), CommandListType::DIRECT,
 			(L"CommandAllocator" + to_wstring(n)).c_str()), ThrowIfFailed(E_FAIL));

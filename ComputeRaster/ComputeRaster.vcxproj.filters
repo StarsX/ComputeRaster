@@ -72,9 +72,6 @@
     <ClInclude Include="XUSG\Core\XUSG.h">
       <Filter>XUSG\Core</Filter>
     </ClInclude>
-    <ClInclude Include="XUSG\Core\XUSG_DX12.h">
-      <Filter>XUSG\Core</Filter>
-    </ClInclude>
     <ClInclude Include="XUSG\Optional\XUSGObjLoader.h">
       <Filter>XUSG\Optional</Filter>
     </ClInclude>
