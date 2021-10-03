@@ -35,22 +35,22 @@ bool SoftGraphicsPipeline::Init(CommandList* pCommandList, vector<Resource::uptr
 	m_tilePrimCount = StructuredBuffer::MakeUnique();
 	N_RETURN(m_tilePrimCount->Create(m_device.get(), 3, sizeof(uint32_t),
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT,
-		1, nullptr, 1, nullptr, L"TilePrimitiveCount"), false);
+		1, nullptr, 1, nullptr, MemoryFlag::NONE, L"TilePrimitiveCount"), false);
 
 	m_tilePrimitives = StructuredBuffer::MakeUnique();
 	N_RETURN(m_tilePrimitives->Create(m_device.get(), tileBufferSize, sizeof(uint32_t[2]),
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, 1,
-		nullptr, 1, nullptr, L"TilePrimitives"), false);
+		nullptr, 1, nullptr, MemoryFlag::NONE, L"TilePrimitives"), false);
 
 	m_binPrimCount = StructuredBuffer::MakeUnique();
 	N_RETURN(m_binPrimCount->Create(m_device.get(), 3, sizeof(uint32_t),
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT,
-		1, nullptr, 1, nullptr, L"BinPrimitiveCount"), false);
+		1, nullptr, 1, nullptr, MemoryFlag::NONE, L"BinPrimitiveCount"), false);
 
 	m_binPrimitives = StructuredBuffer::MakeUnique();
 	N_RETURN(m_binPrimitives->Create(m_device.get(), binBufferSize, sizeof(uint32_t[2]),
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, 1,
-		nullptr, 1, nullptr, L"BinPrimitives"), false);
+		nullptr, 1, nullptr, MemoryFlag::NONE, L"BinPrimitives"), false);
 
 	// create reset buffer for resetting TilePrimitiveCount
 	N_RETURN(createResetBuffer(pCommandList, uploaders), false);
@@ -231,17 +231,17 @@ bool SoftGraphicsPipeline::CreateDepthBuffer(DepthBuffer& depth, uint32_t width,
 	depth.PixelZ = Texture2D::MakeUnique();
 	N_RETURN(depth.PixelZ->Create(m_device.get(), width, height, format, 1,
 		ResourceFlag::ALLOW_UNORDERED_ACCESS | ResourceFlag::ALLOW_SIMULTANEOUS_ACCESS,
-		1, 1, MemoryType::DEFAULT, false, (wstring(name) + L".PixelZ").c_str()), false);
+		1, 1, false, MemoryFlag::NONE, (wstring(name) + L".PixelZ").c_str()), false);
 
 	depth.TileZ = Texture2D::MakeUnique();
 	N_RETURN(depth.TileZ->Create(m_device.get(), DIV_UP(width, TILE_SIZE), DIV_UP(height, TILE_SIZE),
 		format, 1, ResourceFlag::ALLOW_UNORDERED_ACCESS | ResourceFlag::ALLOW_SIMULTANEOUS_ACCESS,
-		1, 1, MemoryType::DEFAULT, false, (wstring(name) + L".TileZ").c_str()), false);
+		1, 1, false, MemoryFlag::NONE, (wstring(name) + L".TileZ").c_str()), false);
 
 	depth.BinZ = Texture2D::MakeUnique();
 	N_RETURN(depth.BinZ->Create(m_device.get(), DIV_UP(width, BIN_SIZE), DIV_UP(height, BIN_SIZE),
 		format, 1, ResourceFlag::ALLOW_UNORDERED_ACCESS | ResourceFlag::ALLOW_SIMULTANEOUS_ACCESS,
-		1, 1, MemoryType::DEFAULT, false, (wstring(name) + L".BinZ").c_str()), false);
+		1, 1, false, MemoryFlag::NONE, (wstring(name) + L".BinZ").c_str()), false);
 
 	return true;
 }
@@ -251,7 +251,8 @@ bool SoftGraphicsPipeline::CreateVertexBuffer(CommandList* pCommandList,
 	uint32_t numVert, uint32_t srtide, const wchar_t* name) const
 {
 	N_RETURN(vb.Create(m_device.get(), numVert, srtide, ResourceFlag::NONE,
-		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, 1, nullptr, name), false);
+		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, 1, nullptr,
+		MemoryFlag::NONE, name), false);
 	uploaders.emplace_back(Resource::MakeUnique());
 
 	return vb.Upload(pCommandList, uploaders.back().get(), pData, srtide * numVert);
@@ -266,7 +267,8 @@ bool SoftGraphicsPipeline::CreateIndexBuffer(CommandList* pCommandList,
 	const uint32_t byteWidth = (format == Format::R16_UINT ? sizeof(uint16_t) : sizeof(uint32_t)) * numIdx;
 
 	N_RETURN(ib.Create(m_device.get(), byteWidth, format, ResourceFlag::NONE,
-		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, 1, nullptr, name), false);
+		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, 1, nullptr,
+		MemoryFlag::NONE, name), false);
 	uploaders.emplace_back(Resource::MakeUnique());
 
 	return ib.Upload(pCommandList, uploaders.back().get(), pData, byteWidth);
@@ -352,7 +354,7 @@ bool SoftGraphicsPipeline::createResetBuffer(CommandList* pCommandList, vector<R
 {
 	m_tilePrimCountReset = StructuredBuffer::MakeUnique();
 	N_RETURN(m_tilePrimCountReset->Create(m_device.get(), 1, sizeof(uint32_t), ResourceFlag::NONE,
-		MemoryType::DEFAULT,1, nullptr, 1, nullptr, L"TilePrimitiveCountReset"), false);
+		MemoryType::DEFAULT,1, nullptr, 1, nullptr, MemoryFlag::NONE, L"TilePrimitiveCountReset"), false);
 
 	const uint32_t pDataReset[] = { 0, 1, 1 };
 	uploaders.emplace_back(Resource::MakeUnique());
@@ -437,22 +439,20 @@ void SoftGraphicsPipeline::draw(CommandList* pCommandList, uint32_t num, StageIn
 		m_vertexPos = StructuredBuffer::MakeUnique();
 		m_vertexPos->Create(m_device.get(), m_maxVertexCount, sizeof(float[4]),
 			ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT,
-			1, nullptr, 1, nullptr, L"VertexPositions");
+			1, nullptr, 1, nullptr, MemoryFlag::NONE, L"VertexPositions");
 
 		m_vertexCompletions = StructuredBuffer::MakeUnique();
 		m_vertexCompletions->Create(m_device.get(), m_maxVertexCount, sizeof(uint32_t),
 			ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT,
-			1, nullptr, 1, nullptr, L"VertexCompletions");
+			1, nullptr, 1, nullptr, MemoryFlag::NONE, L"VertexCompletions");
 
 		const auto attribCount = static_cast<uint32_t>(m_vertexAttribs.size());
 		for (auto i = 0u; i < attribCount; ++i)
 		{
 			m_vertexAttribs[i] = TypedBuffer::MakeUnique();
-			m_vertexAttribs[i]->Create(m_device.get(), m_maxVertexCount,
-				m_attribInfo[i].Stride, m_attribInfo[i].Format,
-				ResourceFlag::ALLOW_UNORDERED_ACCESS,
-				MemoryType::DEFAULT, 1, nullptr, 1, nullptr,
-				m_attribInfo[i].Name.c_str());
+			m_vertexAttribs[i]->Create(m_device.get(), m_maxVertexCount, m_attribInfo[i].Stride,
+				m_attribInfo[i].Format, ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT,
+				1, nullptr, 1, nullptr, MemoryFlag::NONE, m_attribInfo[i].Name.c_str());
 		}
 
 		createPipelines();

@@ -1,1 +1,1 @@
-start ComputeRaster.exe -mesh Media/Venusm.obj 0.0 0.0 0.0 0.003
+start ComputeRaster.exe -mesh Assets/Venusm.obj 0.0 0.0 0.0 0.003

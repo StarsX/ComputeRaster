@@ -1,1 +1,1 @@
-start ComputeRaster.exe -mesh Media/dragon.obj
+start ComputeRaster.exe -mesh Assets/dragon.obj
