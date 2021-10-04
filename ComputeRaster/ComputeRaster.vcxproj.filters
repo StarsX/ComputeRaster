@@ -25,9 +25,6 @@
     <Filter Include="XUSG">
       <UniqueIdentifier>{e03571e2-64ac-409e-8b71-75096e2e5c75}</UniqueIdentifier>
     </Filter>
-    <Filter Include="XUSG\Core">
-      <UniqueIdentifier>{3f214409-efc0-4ed1-82b1-cb960065948b}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Shaders">
       <UniqueIdentifier>{b260c74f-31ac-461c-aa6e-80f763f7e27d}</UniqueIdentifier>
     </Filter>
@@ -69,14 +66,14 @@
     <ClInclude Include="Content\Renderer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="XUSG\Core\XUSG.h">
-      <Filter>XUSG\Core</Filter>
-    </ClInclude>
     <ClInclude Include="XUSG\Optional\XUSGObjLoader.h">
       <Filter>XUSG\Optional</Filter>
     </ClInclude>
     <ClInclude Include="Common\d3d12.h">
       <Filter>Common\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="XUSG\Core\XUSG.h">
+      <Filter>XUSG</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
