@@ -1041,7 +1041,7 @@ namespace XUSG
 		virtual void OMSetBlendFactor(const float blendFactor[4]) const = 0;
 		virtual void OMSetStencilRef(uint32_t stencilRef) const = 0;
 		virtual void SetPipelineState(const Pipeline& pipelineState) const = 0;
-		virtual void Barrier(uint32_t numBarriers, const ResourceBarrier* pBarriers) const = 0;
+		virtual void Barrier(uint32_t numBarriers, const ResourceBarrier* pBarriers) = 0;
 		virtual void ExecuteBundle(const CommandList* pCommandList) const = 0;
 		virtual void SetDescriptorPools(uint32_t numDescriptorPools, const DescriptorPool* pDescriptorPools) const = 0;
 		virtual void SetComputePipelineLayout(const PipelineLayout& pipelineLayout) const = 0;
@@ -1060,6 +1060,12 @@ namespace XUSG
 		virtual void SetGraphicsRootShaderResourceView(uint32_t index, const Resource* pResource, int offset = 0) const = 0;
 		virtual void SetComputeRootUnorderedAccessView(uint32_t index, const Resource* pResource, int offset = 0) const = 0;
 		virtual void SetGraphicsRootUnorderedAccessView(uint32_t index, const Resource* pResource, int offset = 0) const = 0;
+		virtual void SetComputeRootConstantBufferView(uint32_t index, uint64_t address) const = 0;
+		virtual void SetGraphicsRootConstantBufferView(uint32_t index, uint64_t address) const = 0;
+		virtual void SetComputeRootShaderResourceView(uint32_t index, uint64_t address) const = 0;
+		virtual void SetGraphicsRootShaderResourceView(uint32_t index, uint64_t address) const = 0;
+		virtual void SetComputeRootUnorderedAccessView(uint32_t index, uint64_t address) const = 0;
+		virtual void SetGraphicsRootUnorderedAccessView(uint32_t index, uint64_t address) const = 0;
 		virtual void IASetIndexBuffer(const IndexBufferView& view) const = 0;
 		virtual void IASetVertexBuffers(uint32_t startSlot, uint32_t numViews, const VertexBufferView* pViews) const = 0;
 		virtual void SOSetTargets(uint32_t startSlot, uint32_t numViews, const StreamOutBufferView* pViews) const = 0;
@@ -1070,19 +1076,19 @@ namespace XUSG
 			const Descriptor* pDepthStencilView = nullptr,
 			bool rtsSingleHandleToDescriptorRange = false) const = 0;
 		virtual void ClearDepthStencilView(const Framebuffer& framebuffer, ClearFlag clearFlags,
-			float depth, uint8_t stencil = 0, uint32_t numRects = 0, const RectRange* pRects = nullptr) const = 0;
+			float depth, uint8_t stencil = 0, uint32_t numRects = 0, const RectRange* pRects = nullptr) = 0;
 		virtual void ClearDepthStencilView(const Descriptor& depthStencilView, ClearFlag clearFlags,
-			float depth, uint8_t stencil = 0, uint32_t numRects = 0, const RectRange* pRects = nullptr) const = 0;
+			float depth, uint8_t stencil = 0, uint32_t numRects = 0, const RectRange* pRects = nullptr) = 0;
 		virtual void ClearRenderTargetView(const Descriptor& renderTargetView, const float colorRGBA[4],
-			uint32_t numRects = 0, const RectRange* pRects = nullptr) const = 0;
+			uint32_t numRects = 0, const RectRange* pRects = nullptr) = 0;
 		virtual void ClearUnorderedAccessViewUint(const DescriptorTable& descriptorTable,
 			const Descriptor& descriptor, const Resource* pResource, const uint32_t values[4],
-			uint32_t numRects = 0, const RectRange* pRects = nullptr) const = 0;
+			uint32_t numRects = 0, const RectRange* pRects = nullptr) = 0;
 		virtual void ClearUnorderedAccessViewFloat(const DescriptorTable& descriptorTable,
 			const Descriptor& descriptor, const Resource* pResource, const float values[4],
-			uint32_t numRects = 0, const RectRange* pRects = nullptr) const = 0;
+			uint32_t numRects = 0, const RectRange* pRects = nullptr) = 0;
 		virtual void DiscardResource(const Resource*pResource, uint32_t numRects, const RectRange* pRects,
-			uint32_t firstSubresource, uint32_t numSubresources) const = 0;
+			uint32_t firstSubresource, uint32_t numSubresources) = 0;
 		virtual void BeginQuery(const QueryPool& queryPool, QueryType type, uint32_t index) const = 0;
 		virtual void EndQuery(const QueryPool& queryPool, QueryType type, uint32_t index) const = 0;
 		virtual void ResolveQueryData(const QueryPool& queryPool, QueryType type, uint32_t startIndex,
@@ -1254,14 +1260,14 @@ namespace XUSG
 	};
 
 	//--------------------------------------------------------------------------------------
-	// 2D Texture
+	// Texture
 	//--------------------------------------------------------------------------------------
-	class DLL_INTERFACE Texture2D :
+	class DLL_INTERFACE Texture :
 		public virtual ShaderResource
 	{
 	public:
-		//Texture2D();
-		virtual ~Texture2D() {};
+		//Texture();
+		virtual ~Texture() {};
 
 		virtual bool Create(const Device* pDevice, uint32_t width, uint32_t height, Format format,
 			uint32_t arraySize = 1, ResourceFlag resourceFlags = ResourceFlag::NONE,
@@ -1291,12 +1297,12 @@ namespace XUSG
 			const DescriptorTable& samplerTable = nullptr, uint32_t samplerSlot = 1,
 			const Pipeline& pipeline = nullptr) = 0;
 
-		virtual uint32_t Blit(const CommandList* pCommandList, ResourceBarrier* pBarriers, uint32_t groupSizeX,
+		virtual uint32_t Blit(CommandList* pCommandList, ResourceBarrier* pBarriers, uint32_t groupSizeX,
 			uint32_t groupSizeY, uint32_t groupSizeZ, uint8_t mipLevel, int8_t srcMipLevel,
 			ResourceState srcState, const DescriptorTable& uavSrvTable, uint32_t uavSrvSlot = 0,
 			uint32_t numBarriers = 0, const DescriptorTable& srvTable = nullptr,
 			uint32_t srvSlot = 0, uint32_t baseSlice = 0, uint32_t numSlices = 0) = 0;
-		virtual uint32_t GenerateMips(const CommandList* pCommandList, ResourceBarrier* pBarriers, uint32_t groupSizeX,
+		virtual uint32_t GenerateMips(CommandList* pCommandList, ResourceBarrier* pBarriers, uint32_t groupSizeX,
 			uint32_t groupSizeY, uint32_t groupSizeZ, ResourceState dstState, const PipelineLayout& pipelineLayout,
 			const Pipeline& pipeline, const DescriptorTable* pUavSrvTables, uint32_t uavSrvSlot = 0,
 			const DescriptorTable& samplerTable = nullptr, uint32_t samplerSlot = 1, uint32_t numBarriers = 0,
@@ -1311,20 +1317,25 @@ namespace XUSG
 		virtual uint32_t	GetArraySize() const = 0;
 		virtual uint8_t		GetNumMips() const = 0;
 
-		Texture2D* AsTexture2D();
+		Texture* AsTexture();
 
-		using uptr = std::unique_ptr<Texture2D>;
-		using sptr = std::shared_ptr<Texture2D>;
+		using uptr = std::unique_ptr<Texture>;
+		using sptr = std::shared_ptr<Texture>;
 
 		static uptr MakeUnique(API api = API::DIRECTX_12);
 		static sptr MakeShared(API api = API::DIRECTX_12);
 	};
 
 	//--------------------------------------------------------------------------------------
+	// 2D Texture
+	//--------------------------------------------------------------------------------------
+	using Texture2D = Texture;
+
+	//--------------------------------------------------------------------------------------
 	// Render target
 	//--------------------------------------------------------------------------------------
 	class DLL_INTERFACE RenderTarget :
-		public virtual Texture2D
+		public virtual Texture
 	{
 	public:
 		//RenderTarget();
@@ -1348,11 +1359,11 @@ namespace XUSG
 			uint32_t samplerSlot = 1, const Pipeline& pipeline = nullptr,
 			uint32_t offsetForSliceId = 0, uint32_t cbSlot = 2) = 0;
 
-		virtual uint32_t Blit(const CommandList* pCommandList, ResourceBarrier* pBarriers, uint8_t mipLevel,
+		virtual uint32_t Blit(CommandList* pCommandList, ResourceBarrier* pBarriers, uint8_t mipLevel,
 			int8_t srcMipLevel, ResourceState srcState, const DescriptorTable& srcSrvTable,
 			uint32_t srcSlot = 0, uint32_t numBarriers = 0, uint32_t baseSlice = 0, uint32_t numSlices = 0,
 			uint32_t offsetForSliceId = 0, uint32_t cbSlot = 2) = 0;
-		virtual uint32_t GenerateMips(const CommandList* pCommandList, ResourceBarrier* pBarriers, ResourceState dstState,
+		virtual uint32_t GenerateMips(CommandList* pCommandList, ResourceBarrier* pBarriers, ResourceState dstState,
 			const PipelineLayout& pipelineLayout, const Pipeline& pipeline, const DescriptorTable* pSrcSrvTables,
 			uint32_t srcSlot = 0, const DescriptorTable& samplerTable = nullptr, uint32_t samplerSlot = 1,
 			uint32_t numBarriers = 0, uint8_t baseMip = 1, uint8_t numMips = 0, uint32_t baseSlice = 0,
@@ -1371,7 +1382,7 @@ namespace XUSG
 	// Depth stencil
 	//--------------------------------------------------------------------------------------
 	class DLL_INTERFACE DepthStencil :
-		public virtual Texture2D
+		public virtual Texture
 	{
 	public:
 		//DepthStencil();
@@ -1406,7 +1417,7 @@ namespace XUSG
 	// 3D Texture
 	//--------------------------------------------------------------------------------------
 	class DLL_INTERFACE Texture3D :
-		public virtual Texture2D
+		public virtual Texture
 	{
 	public:
 		//Texture3D();
@@ -1430,14 +1441,14 @@ namespace XUSG
 	};
 
 	//--------------------------------------------------------------------------------------
-	// Raw buffer
+	// Buffer
 	//--------------------------------------------------------------------------------------
-	class DLL_INTERFACE RawBuffer :
+	class DLL_INTERFACE Buffer :
 		public virtual ShaderResource
 	{
 	public:
-		//RawBuffer();
-		virtual ~RawBuffer() {};
+		//Buffer();
+		virtual ~Buffer() {};
 
 		virtual bool Create(const Device* pDevice, size_t byteWidth, ResourceFlag resourceFlags = ResourceFlag::NONE,
 			MemoryType memoryType = MemoryType::DEFAULT, uint32_t numSRVs = 1,
@@ -1457,18 +1468,23 @@ namespace XUSG
 		virtual void* Map(const Range* pReadRange, uint32_t descriptorIndex = 0) = 0;
 		virtual void Unmap() = 0;
 
-		using uptr = std::unique_ptr<RawBuffer>;
-		using sptr = std::shared_ptr<RawBuffer>;
+		using uptr = std::unique_ptr<Buffer>;
+		using sptr = std::shared_ptr<Buffer>;
 
 		static uptr MakeUnique(API api = API::DIRECTX_12);
 		static sptr MakeShared(API api = API::DIRECTX_12);
 	};
 
 	//--------------------------------------------------------------------------------------
+	// Raw buffer
+	//--------------------------------------------------------------------------------------
+	using RawBuffer = Buffer;
+
+	//--------------------------------------------------------------------------------------
 	// Structured buffer
 	//--------------------------------------------------------------------------------------
 	class DLL_INTERFACE StructuredBuffer :
-		public virtual RawBuffer
+		public virtual Buffer
 	{
 	public:
 		//StructuredBuffer();
@@ -1501,7 +1517,7 @@ namespace XUSG
 	// Typed buffer
 	//--------------------------------------------------------------------------------------
 	class DLL_INTERFACE TypedBuffer :
-		public virtual RawBuffer
+		public virtual Buffer
 	{
 	public:
 		//TypedBuffer();
@@ -1703,6 +1719,7 @@ namespace XUSG
 		virtual void SetReflector(Shader::Stage stage, uint32_t index, const Reflector::sptr& reflector) = 0;
 
 		virtual Blob CreateShader(Shader::Stage stage, uint32_t index, const std::wstring& fileName) = 0;
+		virtual Blob CreateShader(Shader::Stage stage, uint32_t index, const uint8_t* pData, size_t size) = 0;
 		virtual Blob GetShader(Shader::Stage stage, uint32_t index) const = 0;
 		virtual Reflector::sptr GetReflector(Shader::Stage stage, uint32_t index) const = 0;
 
@@ -1771,9 +1788,13 @@ namespace XUSG
 		virtual void SetPipelineLayout(const std::string& key, const PipelineLayout& pipelineLayout) = 0;
 
 		virtual PipelineLayout CreatePipelineLayout(Util::PipelineLayout* pUtil, PipelineLayoutFlag flags,
-			const wchar_t* name = nullptr) = 0;
+			const wchar_t* name = nullptr, uint32_t nodeMask = 0) = 0;
 		virtual PipelineLayout GetPipelineLayout(Util::PipelineLayout* pUtil, PipelineLayoutFlag flags,
-			const wchar_t* name = nullptr, bool create = true) = 0;
+			const wchar_t* name = nullptr, bool create = true, uint32_t nodeMask = 0) = 0;
+		virtual PipelineLayout CreateRootSignature(const void* pBlobSignature, size_t size,
+			const wchar_t* name, uint32_t nodeMask = 0) = 0;
+		virtual PipelineLayout GetRootSignature(const void* pBlobSignature, size_t size,
+			const wchar_t* name = nullptr, bool create = true, uint32_t nodeMask = 0) = 0;
 
 		virtual DescriptorTableLayout CreateDescriptorTableLayout(uint32_t index, const Util::PipelineLayout* pUtil) = 0;
 		virtual DescriptorTableLayout GetDescriptorTableLayout(uint32_t index, const Util::PipelineLayout* pUtil) = 0;
