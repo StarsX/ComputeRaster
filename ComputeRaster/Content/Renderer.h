@@ -9,7 +9,7 @@
 class Renderer
 {
 public:
-	Renderer(const XUSG::Device::sptr& device);
+	Renderer();
 	virtual ~Renderer();
 
 	bool Init(XUSG::CommandList* pCommandList, uint32_t width, uint32_t height,
@@ -31,8 +31,6 @@ protected:
 
 		NUM_CBV_TABLE
 	};
-
-	XUSG::Device::sptr m_device;
 
 	std::unique_ptr<SoftGraphicsPipeline> m_softGraphicsPipeline;
 	XUSG::VertexBuffer::uptr	m_vb;

@@ -17,7 +17,7 @@ public:
 		XUSG::Texture2D::uptr BinZ;
 	};
 
-	SoftGraphicsPipeline(const XUSG::Device::sptr& device);
+	SoftGraphicsPipeline();
 	virtual ~SoftGraphicsPipeline();
 
 	bool Init(XUSG::CommandList* pCommandList, std::vector<XUSG::Resource::uptr>& uploaders);
@@ -39,8 +39,8 @@ public:
 	void Draw(XUSG::CommandList* pCommandList, uint32_t numVertices);
 	void DrawIndexed(XUSG::CommandList* pCommandList, uint32_t numIndices);
 
-	bool CreateDepthBuffer(DepthBuffer &depth, uint32_t width, uint32_t height,
-		XUSG::Format format, const wchar_t* name = L"Depth");
+	bool CreateDepthBuffer(const XUSG::Device* pDevice, DepthBuffer &depth, uint32_t width,
+		uint32_t height, XUSG::Format format, const wchar_t* name = L"Depth");
 	bool CreateVertexBuffer(XUSG::CommandList* pCommandList, XUSG::VertexBuffer& vb,
 		std::vector<XUSG::Resource::uptr>& uploaders, const void* pData, uint32_t numVert,
 		uint32_t srtide, const wchar_t* name = L"VertexBuffer") const;
@@ -112,13 +112,11 @@ protected:
 
 	bool createPipelines();
 	bool createResetBuffer(XUSG::CommandList* pCommandList, std::vector<XUSG::Resource::uptr>& uploaders);
-	bool createCommandLayout();
+	bool createCommandLayout(const XUSG::Device* pDevice);
 	bool createDescriptorTables();
 
 	void draw(XUSG::CommandList* pCommandList, uint32_t num, StageIndex vs);
 	void rasterizer(XUSG::CommandList* pCommandList, uint32_t numTriangles);
-
-	XUSG::Device::sptr m_device;
 
 	XUSG::ShaderPool::uptr				m_shaderPool;
 	XUSG::Compute::PipelineCache::uptr	m_computePipelineCache;

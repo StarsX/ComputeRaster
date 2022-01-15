@@ -9,8 +9,7 @@ using namespace std;
 using namespace DirectX;
 using namespace XUSG;
 
-Renderer::Renderer(const Device::sptr& device) :
-	m_device(device)
+Renderer::Renderer()
 {
 }
 
@@ -22,21 +21,22 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width,
 	uint32_t height, vector<Resource::uptr>& uploaders, const char* fileName,
 	const XMFLOAT4& posScale)
 {
+	const auto pDevice = pCommandList->GetDevice();
 	m_viewport.x = static_cast<float>(width);
 	m_viewport.y = static_cast<float>(height);
 	m_posScale = posScale;
 
-	X_RETURN(m_softGraphicsPipeline, make_unique<SoftGraphicsPipeline>(m_device), false);
+	X_RETURN(m_softGraphicsPipeline, make_unique<SoftGraphicsPipeline>(), false);
 	N_RETURN(m_softGraphicsPipeline->Init(pCommandList, uploaders), false);
 
 	// Create Color target
 	m_colorTarget = Texture2D::MakeUnique();
-	N_RETURN(m_colorTarget->Create(m_device.get(), width, height, Format::R8G8B8A8_UNORM, 1,
+	N_RETURN(m_colorTarget->Create(pDevice, width, height, Format::R8G8B8A8_UNORM, 1,
 		ResourceFlag::ALLOW_UNORDERED_ACCESS | ResourceFlag::ALLOW_SIMULTANEOUS_ACCESS), false);
 
 	// Create depth buffer
-	N_RETURN(m_softGraphicsPipeline->CreateDepthBuffer(m_depth, width,
-		height, Format::R32_UINT), false);
+	N_RETURN(m_softGraphicsPipeline->CreateDepthBuffer(pDevice,
+		m_depth, width, height, Format::R32_UINT), false);
 	
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
@@ -55,7 +55,7 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width,
 	// Create constant buffers
 	const auto& frameCount = SoftGraphicsPipeline::FrameCount;
 	m_cbMatrices = ConstantBuffer::MakeUnique();
-	N_RETURN(m_cbMatrices->Create(m_device.get(), sizeof(XMFLOAT4X4[2]) * frameCount, frameCount), false);
+	N_RETURN(m_cbMatrices->Create(pDevice, sizeof(XMFLOAT4X4[2]) * frameCount, frameCount), false);
 	for (uint8_t i = 0; i < frameCount; ++i)
 	{
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
@@ -65,7 +65,7 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width,
 
 	// Per-frame lighting
 	m_cbLighting = ConstantBuffer::MakeUnique();
-	N_RETURN(m_cbLighting->Create(m_device.get(), sizeof(XMFLOAT4[4]) * frameCount, frameCount), false);
+	N_RETURN(m_cbLighting->Create(pDevice, sizeof(XMFLOAT4[4]) * frameCount, frameCount), false);
 	for (uint8_t i = 0; i < frameCount; ++i)
 	{
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
@@ -77,7 +77,7 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width,
 	{
 		XMFLOAT3 baseColor(1.0f, 1.0f, 0.5f);
 		m_cbMaterial = ConstantBuffer::MakeUnique();
-		N_RETURN(m_cbMaterial->Create(m_device.get(), sizeof(XMFLOAT3), 1, nullptr, MemoryType::DEFAULT), false);
+		N_RETURN(m_cbMaterial->Create(pDevice, sizeof(XMFLOAT3), 1, nullptr, MemoryType::DEFAULT), false);
 		uploaders.emplace_back(Resource::MakeUnique());
 		m_cbMaterial->Upload(pCommandList, uploaders.back().get(), &baseColor, sizeof(XMFLOAT4));
 

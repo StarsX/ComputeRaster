@@ -9,17 +9,13 @@ using namespace std;
 using namespace DirectX;
 using namespace XUSG;
 
-SoftGraphicsPipeline::SoftGraphicsPipeline(const Device::sptr& device) :
-	m_device(device),
+SoftGraphicsPipeline::SoftGraphicsPipeline() :
 	m_pColorTarget(nullptr),
 	m_pDepth(nullptr),
 	m_maxVertexCount(0),
 	m_clearDepth(0xffffffff)
 {
 	m_shaderPool = ShaderPool::MakeUnique();
-	m_computePipelineCache = Compute::PipelineCache::MakeUnique(device.get());
-	m_descriptorTableCache = DescriptorTableCache::MakeUnique(device.get());
-	m_pipelineLayoutCache = PipelineLayoutCache::MakeUnique(device.get());
 }
 
 SoftGraphicsPipeline::~SoftGraphicsPipeline()
@@ -28,27 +24,32 @@ SoftGraphicsPipeline::~SoftGraphicsPipeline()
 
 bool SoftGraphicsPipeline::Init(CommandList* pCommandList, vector<Resource::uptr>& uploaders)
 {
+	const auto pDevice = pCommandList->GetDevice();
+	m_computePipelineCache = Compute::PipelineCache::MakeUnique(pDevice);
+	m_descriptorTableCache = DescriptorTableCache::MakeUnique(pDevice);
+	m_pipelineLayoutCache = PipelineLayoutCache::MakeUnique(pDevice);
+
 	const uint32_t tileBufferSize = (UINT32_MAX >> 4) + 1;
 	const uint32_t binBufferSize = tileBufferSize >> 6;
 
 	// Create buffers
 	m_tilePrimCount = StructuredBuffer::MakeUnique();
-	N_RETURN(m_tilePrimCount->Create(m_device.get(), 3, sizeof(uint32_t),
+	N_RETURN(m_tilePrimCount->Create(pDevice, 3, sizeof(uint32_t),
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT,
 		1, nullptr, 1, nullptr, MemoryFlag::NONE, L"TilePrimitiveCount"), false);
 
 	m_tilePrimitives = StructuredBuffer::MakeUnique();
-	N_RETURN(m_tilePrimitives->Create(m_device.get(), tileBufferSize, sizeof(uint32_t[2]),
+	N_RETURN(m_tilePrimitives->Create(pDevice, tileBufferSize, sizeof(uint32_t[2]),
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, 1,
 		nullptr, 1, nullptr, MemoryFlag::NONE, L"TilePrimitives"), false);
 
 	m_binPrimCount = StructuredBuffer::MakeUnique();
-	N_RETURN(m_binPrimCount->Create(m_device.get(), 3, sizeof(uint32_t),
+	N_RETURN(m_binPrimCount->Create(pDevice, 3, sizeof(uint32_t),
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT,
 		1, nullptr, 1, nullptr, MemoryFlag::NONE, L"BinPrimitiveCount"), false);
 
 	m_binPrimitives = StructuredBuffer::MakeUnique();
-	N_RETURN(m_binPrimitives->Create(m_device.get(), binBufferSize, sizeof(uint32_t[2]),
+	N_RETURN(m_binPrimitives->Create(pDevice, binBufferSize, sizeof(uint32_t[2]),
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, 1,
 		nullptr, 1, nullptr, MemoryFlag::NONE, L"BinPrimitives"), false);
 
@@ -56,7 +57,7 @@ bool SoftGraphicsPipeline::Init(CommandList* pCommandList, vector<Resource::uptr
 	N_RETURN(createResetBuffer(pCommandList, uploaders), false);
 
 	// create command layout
-	N_RETURN(createCommandLayout(), false);
+	N_RETURN(createCommandLayout(pDevice), false);
 
 	return true;
 }
@@ -225,21 +226,21 @@ void SoftGraphicsPipeline::DrawIndexed(CommandList* pCommandList, uint32_t numIn
 	draw(pCommandList, numIndices, VERTEX_INDEXED);
 }
 
-bool SoftGraphicsPipeline::CreateDepthBuffer(DepthBuffer& depth, uint32_t width, uint32_t height,
-	Format format, const wchar_t* name)
+bool SoftGraphicsPipeline::CreateDepthBuffer(const Device* pDevice, DepthBuffer& depth,
+	uint32_t width, uint32_t height, Format format, const wchar_t* name)
 {
 	depth.PixelZ = Texture2D::MakeUnique();
-	N_RETURN(depth.PixelZ->Create(m_device.get(), width, height, format, 1,
+	N_RETURN(depth.PixelZ->Create(pDevice, width, height, format, 1,
 		ResourceFlag::ALLOW_UNORDERED_ACCESS | ResourceFlag::ALLOW_SIMULTANEOUS_ACCESS,
 		1, 1, false, MemoryFlag::NONE, (wstring(name) + L".PixelZ").c_str()), false);
 
 	depth.TileZ = Texture2D::MakeUnique();
-	N_RETURN(depth.TileZ->Create(m_device.get(), DIV_UP(width, TILE_SIZE), DIV_UP(height, TILE_SIZE),
+	N_RETURN(depth.TileZ->Create(pDevice, DIV_UP(width, TILE_SIZE), DIV_UP(height, TILE_SIZE),
 		format, 1, ResourceFlag::ALLOW_UNORDERED_ACCESS | ResourceFlag::ALLOW_SIMULTANEOUS_ACCESS,
 		1, 1, false, MemoryFlag::NONE, (wstring(name) + L".TileZ").c_str()), false);
 
 	depth.BinZ = Texture2D::MakeUnique();
-	N_RETURN(depth.BinZ->Create(m_device.get(), DIV_UP(width, BIN_SIZE), DIV_UP(height, BIN_SIZE),
+	N_RETURN(depth.BinZ->Create(pDevice, DIV_UP(width, BIN_SIZE), DIV_UP(height, BIN_SIZE),
 		format, 1, ResourceFlag::ALLOW_UNORDERED_ACCESS | ResourceFlag::ALLOW_SIMULTANEOUS_ACCESS,
 		1, 1, false, MemoryFlag::NONE, (wstring(name) + L".BinZ").c_str()), false);
 
@@ -250,7 +251,7 @@ bool SoftGraphicsPipeline::CreateVertexBuffer(CommandList* pCommandList,
 	VertexBuffer& vb, vector<Resource::uptr>& uploaders, const void* pData,
 	uint32_t numVert, uint32_t srtide, const wchar_t* name) const
 {
-	N_RETURN(vb.Create(m_device.get(), numVert, srtide, ResourceFlag::NONE,
+	N_RETURN(vb.Create(pCommandList->GetDevice(), numVert, srtide, ResourceFlag::NONE,
 		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, 1, nullptr,
 		MemoryFlag::NONE, name), false);
 	uploaders.emplace_back(Resource::MakeUnique());
@@ -266,7 +267,7 @@ bool SoftGraphicsPipeline::CreateIndexBuffer(CommandList* pCommandList,
 	assert(format == Format::R16_UINT || format == Format::R32_UINT);
 	const uint32_t byteWidth = (format == Format::R16_UINT ? sizeof(uint16_t) : sizeof(uint32_t)) * numIdx;
 
-	N_RETURN(ib.Create(m_device.get(), byteWidth, format, ResourceFlag::NONE,
+	N_RETURN(ib.Create(pCommandList->GetDevice(), byteWidth, format, ResourceFlag::NONE,
 		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, 1, nullptr,
 		MemoryFlag::NONE, name), false);
 	uploaders.emplace_back(Resource::MakeUnique());
@@ -353,7 +354,7 @@ bool SoftGraphicsPipeline::createPipelines()
 bool SoftGraphicsPipeline::createResetBuffer(CommandList* pCommandList, vector<Resource::uptr>& uploaders)
 {
 	m_tilePrimCountReset = StructuredBuffer::MakeUnique();
-	N_RETURN(m_tilePrimCountReset->Create(m_device.get(), 1, sizeof(uint32_t), ResourceFlag::NONE,
+	N_RETURN(m_tilePrimCountReset->Create(pCommandList->GetDevice(), 1, sizeof(uint32_t), ResourceFlag::NONE,
 		MemoryType::DEFAULT,1, nullptr, 1, nullptr, MemoryFlag::NONE, L"TilePrimitiveCountReset"), false);
 
 	const uint32_t pDataReset[] = { 0, 1, 1 };
@@ -368,13 +369,13 @@ bool SoftGraphicsPipeline::createResetBuffer(CommandList* pCommandList, vector<R
 	return m_tilePrimCountReset->Upload(pCommandList, uploaders.back().get(), pDataReset, sizeof(uint32_t));
 }
 
-bool SoftGraphicsPipeline::createCommandLayout()
+bool SoftGraphicsPipeline::createCommandLayout(const Device* pDevice)
 {
 	IndirectArgument arg;
 	arg.Type = IndirectArgumentType::DISPATCH;
 	m_commandLayout = CommandLayout::MakeUnique();
 
-	return m_commandLayout->Create(m_device.get(), sizeof(uint32_t[3]), 1, &arg);
+	return m_commandLayout->Create(pDevice, sizeof(uint32_t[3]), 1, &arg);
 }
 
 bool SoftGraphicsPipeline::createDescriptorTables()
@@ -436,13 +437,14 @@ void SoftGraphicsPipeline::draw(CommandList* pCommandList, uint32_t num, StageIn
 	static auto firstTime = true;
 	if (firstTime)
 	{
+		const auto pDevice = pCommandList->GetDevice();
 		m_vertexPos = StructuredBuffer::MakeUnique();
-		m_vertexPos->Create(m_device.get(), m_maxVertexCount, sizeof(float[4]),
+		m_vertexPos->Create(pDevice, m_maxVertexCount, sizeof(float[4]),
 			ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT,
 			1, nullptr, 1, nullptr, MemoryFlag::NONE, L"VertexPositions");
 
 		m_vertexCompletions = StructuredBuffer::MakeUnique();
-		m_vertexCompletions->Create(m_device.get(), m_maxVertexCount, sizeof(uint32_t),
+		m_vertexCompletions->Create(pDevice, m_maxVertexCount, sizeof(uint32_t),
 			ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT,
 			1, nullptr, 1, nullptr, MemoryFlag::NONE, L"VertexCompletions");
 
@@ -450,7 +452,7 @@ void SoftGraphicsPipeline::draw(CommandList* pCommandList, uint32_t num, StageIn
 		for (auto i = 0u; i < attribCount; ++i)
 		{
 			m_vertexAttribs[i] = TypedBuffer::MakeUnique();
-			m_vertexAttribs[i]->Create(m_device.get(), m_maxVertexCount, m_attribInfo[i].Stride,
+			m_vertexAttribs[i]->Create(pDevice, m_maxVertexCount, m_attribInfo[i].Stride,
 				m_attribInfo[i].Format, ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT,
 				1, nullptr, 1, nullptr, MemoryFlag::NONE, m_attribInfo[i].Name.c_str());
 		}

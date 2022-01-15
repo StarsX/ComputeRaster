@@ -79,7 +79,7 @@ void ComputeRaster::LoadPipeline()
 		dxgiAdapter = nullptr;
 		ThrowIfFailed(factory->EnumAdapters1(i, &dxgiAdapter));
 
-		m_device = Device::MakeShared();
+		m_device = Device::MakeUnique();
 		hr = m_device->Create(dxgiAdapter.get(), D3D_FEATURE_LEVEL_11_0);
 	}
 
@@ -126,7 +126,7 @@ void ComputeRaster::LoadAssets()
 		m_commandAllocators[m_frameIndex].get(), nullptr), ThrowIfFailed(E_FAIL));
 
 	vector<Resource::uptr> uploaders(0);
-	X_RETURN(m_renderer, make_unique<Renderer>(m_device), ThrowIfFailed(E_FAIL));
+	X_RETURN(m_renderer, make_unique<Renderer>(), ThrowIfFailed(E_FAIL));
 	N_RETURN(m_renderer->Init(pCommandList, m_width, m_height, uploaders,
 		m_meshFileName.c_str(), m_meshPosScale), ThrowIfFailed(E_FAIL));
 
