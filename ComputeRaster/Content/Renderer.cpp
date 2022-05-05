@@ -26,36 +26,36 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width,
 	m_viewport.y = static_cast<float>(height);
 	m_posScale = posScale;
 
-	X_RETURN(m_softGraphicsPipeline, make_unique<SoftGraphicsPipeline>(), false);
-	N_RETURN(m_softGraphicsPipeline->Init(pCommandList, uploaders), false);
+	XUSG_X_RETURN(m_softGraphicsPipeline, make_unique<SoftGraphicsPipeline>(), false);
+	XUSG_N_RETURN(m_softGraphicsPipeline->Init(pCommandList, uploaders), false);
 
 	// Create Color target
 	m_colorTarget = Texture2D::MakeUnique();
-	N_RETURN(m_colorTarget->Create(pDevice, width, height, Format::R8G8B8A8_UNORM, 1,
+	XUSG_N_RETURN(m_colorTarget->Create(pDevice, width, height, Format::R8G8B8A8_UNORM, 1,
 		ResourceFlag::ALLOW_UNORDERED_ACCESS | ResourceFlag::ALLOW_SIMULTANEOUS_ACCESS), false);
 
 	// Create depth buffer
-	N_RETURN(m_softGraphicsPipeline->CreateDepthBuffer(pDevice,
+	XUSG_N_RETURN(m_softGraphicsPipeline->CreateDepthBuffer(pDevice,
 		m_depth, width, height, Format::R32_UINT), false);
 	
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
 		pipelineLayout->SetRange(0, DescriptorType::CBV, 1, 0, 0, DescriptorFlag::DATA_STATIC);
 		m_softGraphicsPipeline->SetAttribute(0, sizeof(uint32_t[4]), Format::R32G32B32A32_FLOAT, L"Normal");
-		N_RETURN(m_softGraphicsPipeline->CreateVertexShaderLayout(pipelineLayout.get(), 1), false);
+		XUSG_N_RETURN(m_softGraphicsPipeline->CreateVertexShaderLayout(pipelineLayout.get(), 1), false);
 	}
 
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
 		pipelineLayout->SetRange(0, DescriptorType::CBV, 1, 0, 0, DescriptorFlag::DATA_STATIC);
 		pipelineLayout->SetRange(1, DescriptorType::CBV, 1, 1, 0, DescriptorFlag::DATA_STATIC);
-		N_RETURN(m_softGraphicsPipeline->CreatePixelShaderLayout(pipelineLayout.get(), true, 1, 2, 1), false);
+		XUSG_N_RETURN(m_softGraphicsPipeline->CreatePixelShaderLayout(pipelineLayout.get(), true, 1, 2, 1), false);
 	}
 
 	// Create constant buffers
 	const auto& frameCount = SoftGraphicsPipeline::FrameCount;
 	m_cbMatrices = ConstantBuffer::MakeUnique();
-	N_RETURN(m_cbMatrices->Create(pDevice, sizeof(XMFLOAT4X4[2]) * frameCount, frameCount), false);
+	XUSG_N_RETURN(m_cbMatrices->Create(pDevice, sizeof(XMFLOAT4X4[2]) * frameCount, frameCount), false);
 	for (uint8_t i = 0; i < frameCount; ++i)
 	{
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
@@ -65,7 +65,7 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width,
 
 	// Per-frame lighting
 	m_cbLighting = ConstantBuffer::MakeUnique();
-	N_RETURN(m_cbLighting->Create(pDevice, sizeof(XMFLOAT4[4]) * frameCount, frameCount), false);
+	XUSG_N_RETURN(m_cbLighting->Create(pDevice, sizeof(XMFLOAT4[4]) * frameCount, frameCount), false);
 	for (uint8_t i = 0; i < frameCount; ++i)
 	{
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
@@ -77,7 +77,7 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width,
 	{
 		XMFLOAT3 baseColor(1.0f, 1.0f, 0.5f);
 		m_cbMaterial = ConstantBuffer::MakeUnique();
-		N_RETURN(m_cbMaterial->Create(pDevice, sizeof(XMFLOAT3), 1, nullptr, MemoryType::DEFAULT), false);
+		XUSG_N_RETURN(m_cbMaterial->Create(pDevice, sizeof(XMFLOAT3), 1, nullptr, MemoryType::DEFAULT), false);
 		uploaders.emplace_back(Resource::MakeUnique());
 		m_cbMaterial->Upload(pCommandList, uploaders.back().get(), &baseColor, sizeof(XMFLOAT4));
 
@@ -91,12 +91,12 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width,
 #if 1
 	// Load inputs
 	ObjLoader objLoader;
-	N_RETURN(objLoader.Import(fileName, true, true), false);
+	XUSG_N_RETURN(objLoader.Import(fileName, true, true), false);
 
 	m_numIndices = objLoader.GetNumIndices();
-	N_RETURN(m_softGraphicsPipeline->CreateVertexBuffer(pCommandList, *m_vb, uploaders,
+	XUSG_N_RETURN(m_softGraphicsPipeline->CreateVertexBuffer(pCommandList, *m_vb, uploaders,
 		objLoader.GetVertices(), objLoader.GetNumVertices(), objLoader.GetVertexStride()), false);
-	N_RETURN(m_softGraphicsPipeline->CreateIndexBuffer(pCommandList, *m_ib,
+	XUSG_N_RETURN(m_softGraphicsPipeline->CreateIndexBuffer(pCommandList, *m_ib,
 		uploaders, objLoader.GetIndices(), m_numIndices, Format::R32_UINT), false);
 #else
 	const float vbData[] =
@@ -108,12 +108,12 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width,
 		-5.0f, -1.0f, 0.0f,
 		0.0f, 0.0f, -1.0f,
 	};
-	N_RETURN(m_softGraphicsPipeline->CreateVertexBuffer(commandList, m_vb,
+	XUSG_N_RETURN(m_softGraphicsPipeline->CreateVertexBuffer(commandList, m_vb,
 		uploaders, vbData, 3, sizeof(float[6])), false);
 
 	const uint16_t ibData[] = { 0, 1, 2 };
 	m_numIndices = 3;
-	N_RETURN(m_softGraphicsPipeline->CreateIndexBuffer(commandList, m_ib,
+	XUSG_N_RETURN(m_softGraphicsPipeline->CreateIndexBuffer(commandList, m_ib,
 		uploaders, ibData, m_numIndices, Format::R16_UINT), false);
 #endif
 
