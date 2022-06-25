@@ -23,7 +23,7 @@
 
 #include <windows.h>
 
-#include <dxgi1_4.h>
+#include <dxgi1_5.h>
 #include <D3Dcompiler.h>
 #include <DirectXMath.h>
 #include "d3dx12.h"
