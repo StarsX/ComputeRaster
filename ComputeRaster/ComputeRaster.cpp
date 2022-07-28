@@ -95,7 +95,7 @@ void ComputeRaster::LoadPipeline()
 
 	// Describe and create the swap chain.
 	m_swapChain = SwapChain::MakeUnique();
-	XUSG_N_RETURN(m_swapChain->Create(factory.get(), Win32Application::GetHwnd(), m_commandQueue.get(),
+	XUSG_N_RETURN(m_swapChain->Create(factory.get(), Win32Application::GetHwnd(), m_commandQueue->GetHandle(),
 		SoftGraphicsPipeline::FrameCount, m_width, m_height, Format::R8G8B8A8_UNORM,
 		SwapChainFlag::ALLOW_TEARING), ThrowIfFailed(E_FAIL));
 

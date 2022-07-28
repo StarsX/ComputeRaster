@@ -172,9 +172,12 @@ COPY /Y "$(ProjectDir)XUSG\Bin\$(Platform)\$(Configuration)\*.dll" "$(ProjectDir
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Common\d3d12.h" />
+    <ClInclude Include="Common\d3dcommon.h" />
     <ClInclude Include="Common\d3dx12.h" />
     <ClInclude Include="Common\DXFramework.h" />
     <ClInclude Include="Common\DXFrameworkHelper.h" />
+    <ClInclude Include="Common\dxgicommon.h" />
+    <ClInclude Include="Common\dxgiformat.h" />
     <ClInclude Include="Common\StepTimer.h" />
     <ClInclude Include="Common\Win32Application.h" />
     <ClInclude Include="Content\Renderer.h" />
