@@ -47,7 +47,7 @@ public:
 	bool CreateIndexBuffer(XUSG::CommandList* pCommandList, XUSG::IndexBuffer& ib,
 		std::vector<XUSG::Resource::uptr>& uploaders, const void* pData, uint32_t numIdx,
 		XUSG::Format format, const wchar_t* name = L"IndexBuffer");
-	XUSG::DescriptorTableCache* GetDescriptorTableCache() const;
+	XUSG::DescriptorTableLib* GetDescriptorTableLib() const;
 
 	static const uint8_t FrameCount = FRAME_COUNT;
 
@@ -118,10 +118,10 @@ protected:
 	void draw(XUSG::CommandList* pCommandList, uint32_t num, StageIndex vs);
 	void rasterizer(XUSG::CommandList* pCommandList, uint32_t numTriangles);
 
-	XUSG::ShaderPool::uptr				m_shaderPool;
-	XUSG::Compute::PipelineCache::uptr	m_computePipelineCache;
-	XUSG::PipelineLayoutCache::uptr		m_pipelineLayoutCache;
-	XUSG::DescriptorTableCache::uptr		m_descriptorTableCache;
+	XUSG::ShaderLib::uptr				m_shaderLib;
+	XUSG::Compute::PipelineLib::uptr	m_computePipelineLib;
+	XUSG::PipelineLayoutLib::uptr		m_pipelineLayoutLib;
+	XUSG::DescriptorTableLib::uptr		m_descriptorTableLib;
 
 	XUSG::PipelineLayout		m_pipelineLayouts[NUM_STAGE];
 	XUSG::Pipeline				m_pipelines[NUM_STAGE];
@@ -142,10 +142,10 @@ protected:
 	XUSG::ConstantBuffer::uptr	m_cbPerObject;
 	XUSG::ConstantBuffer::uptr	m_cbBound;
 
-	XUSG::Descriptor		m_vertexBufferView;
-	XUSG::Descriptor		m_indexBufferView;
-	XUSG::Texture2D*		m_pColorTarget;
-	DepthBuffer*			m_pDepth;
+	XUSG::Descriptor	m_vertexBufferView;
+	XUSG::Descriptor	m_indexBufferView;
+	XUSG::Texture2D*	m_pColorTarget;
+	DepthBuffer*		m_pDepth;
 
 	std::vector<AttributeInfo> m_attribInfo;
 	std::vector<XUSG::TypedBuffer::uptr> m_vertexAttribs;

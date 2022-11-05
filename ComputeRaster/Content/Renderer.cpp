@@ -60,7 +60,7 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width,
 	{
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		descriptorTable->SetDescriptors(0, 1, &m_cbMatrices->GetCBV(i));
-		m_cbvTables[CBV_TABLE_MATRICES + i] = descriptorTable->GetCbvSrvUavTable(m_softGraphicsPipeline->GetDescriptorTableCache());
+		m_cbvTables[CBV_TABLE_MATRICES + i] = descriptorTable->GetCbvSrvUavTable(m_softGraphicsPipeline->GetDescriptorTableLib());
 	}
 
 	// Per-frame lighting
@@ -70,7 +70,7 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width,
 	{
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		descriptorTable->SetDescriptors(0, 1, &m_cbLighting->GetCBV(i));
-		m_cbvTables[CBV_TABLE_LIGHTING + i] = descriptorTable->GetCbvSrvUavTable(m_softGraphicsPipeline->GetDescriptorTableCache());
+		m_cbvTables[CBV_TABLE_LIGHTING + i] = descriptorTable->GetCbvSrvUavTable(m_softGraphicsPipeline->GetDescriptorTableLib());
 	}
 
 	// Immutable material
@@ -83,7 +83,7 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width,
 
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		descriptorTable->SetDescriptors(0, 1, &m_cbMaterial->GetCBV());
-		m_cbvTables[CBV_TABLE_MATERIAL] = descriptorTable->GetCbvSrvUavTable(m_softGraphicsPipeline->GetDescriptorTableCache());
+		m_cbvTables[CBV_TABLE_MATERIAL] = descriptorTable->GetCbvSrvUavTable(m_softGraphicsPipeline->GetDescriptorTableLib());
 	}
 
 	m_vb = VertexBuffer::MakeUnique();

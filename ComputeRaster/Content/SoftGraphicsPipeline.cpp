@@ -15,7 +15,7 @@ SoftGraphicsPipeline::SoftGraphicsPipeline() :
 	m_maxVertexCount(0),
 	m_clearDepth(0xffffffff)
 {
-	m_shaderPool = ShaderPool::MakeUnique();
+	m_shaderLib = ShaderLib::MakeUnique();
 }
 
 SoftGraphicsPipeline::~SoftGraphicsPipeline()
@@ -25,9 +25,9 @@ SoftGraphicsPipeline::~SoftGraphicsPipeline()
 bool SoftGraphicsPipeline::Init(CommandList* pCommandList, vector<Resource::uptr>& uploaders)
 {
 	const auto pDevice = pCommandList->GetDevice();
-	m_computePipelineCache = Compute::PipelineCache::MakeUnique(pDevice);
-	m_descriptorTableCache = DescriptorTableCache::MakeUnique(pDevice);
-	m_pipelineLayoutCache = PipelineLayoutCache::MakeUnique(pDevice);
+	m_computePipelineLib = Compute::PipelineLib::MakeUnique(pDevice);
+	m_descriptorTableLib = DescriptorTableLib::MakeUnique(pDevice);
+	m_pipelineLayoutLib = PipelineLayoutLib::MakeUnique(pDevice);
 
 	const uint32_t tileBufferSize = (UINT32_MAX >> 4) + 1;
 	const uint32_t binBufferSize = tileBufferSize >> 6;
@@ -77,7 +77,7 @@ bool SoftGraphicsPipeline::CreateVertexShaderLayout(Util::PipelineLayout* pPipel
 			uavBindingMax + 1, 0, DescriptorFlag::DESCRIPTORS_VOLATILE |
 			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		XUSG_X_RETURN(m_pipelineLayouts[VERTEX_PROCESS], pPipelineLayout->GetPipelineLayout(
-			m_pipelineLayoutCache.get(), PipelineLayoutFlag::NONE, L"VertexShaderStageLayout"), false);
+			m_pipelineLayoutLib.get(), PipelineLayoutFlag::NONE, L"VertexShaderStageLayout"), false);
 	}
 
 	m_pipelineLayouts[VERTEX_INDEXED] = m_pipelineLayouts[VERTEX_PROCESS];
@@ -94,14 +94,14 @@ bool SoftGraphicsPipeline::CreatePixelShaderLayout(Util::PipelineLayout* pPipeli
 	// Create pipeline layouts
 	{
 		const auto numSRVs = static_cast<uint32_t>(m_vertexAttribs.size()) + 1;
-		pPipelineLayout->SetConstants(slotCount, XUSG_SizeOfInUint32(CBViewPort), cbvBindingMax + 1);
+		pPipelineLayout->SetConstants(slotCount, XUSG_UINT32_SIZE_OF(CBViewPort), cbvBindingMax + 1);
 		pPipelineLayout->SetRange(slotCount + 1, DescriptorType::SRV, numSRVs, srvBindingMax + 1);
 		pPipelineLayout->SetRange(slotCount + 2, DescriptorType::UAV, 1, uavBindingMax + 1, 0,
 			DescriptorFlag::DESCRIPTORS_VOLATILE | DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		pPipelineLayout->SetRange(slotCount + 3, DescriptorType::UAV, hasDepth ? numRTs + 2 : numRTs,
 			uavBindingMax + 2, 0, DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		XUSG_X_RETURN(m_pipelineLayouts[PIX_RASTER], pPipelineLayout->GetPipelineLayout(
-			m_pipelineLayoutCache.get(), PipelineLayoutFlag::NONE, L"PixelRasterLayout"), false);
+			m_pipelineLayoutLib.get(), PipelineLayoutFlag::NONE, L"PixelRasterLayout"), false);
 	}
 
 	return true;
@@ -138,7 +138,7 @@ void SoftGraphicsPipeline::SetRenderTargets(uint32_t numRTs, Texture2D* pColorTa
 	{
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		descriptorTable->SetDescriptors(0, 1, &pColorTarget->GetUAV());
-		m_outTables[i] = descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get());
+		m_outTables[i] = descriptorTable->GetCbvSrvUavTable(m_descriptorTableLib.get());
 	}
 
 	if (pDepth)
@@ -146,19 +146,19 @@ void SoftGraphicsPipeline::SetRenderTargets(uint32_t numRTs, Texture2D* pColorTa
 		{
 			const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 			descriptorTable->SetDescriptors(0, 1, &pDepth->PixelZ->GetUAV());
-			m_outTables[m_outTables.size() - 1] = descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get());
+			m_outTables[m_outTables.size() - 1] = descriptorTable->GetCbvSrvUavTable(m_descriptorTableLib.get());
 		}
 
 		{
 			const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 			descriptorTable->SetDescriptors(0, 1, &pDepth->TileZ->GetUAV());
-			m_outTables[m_outTables.size() - 2] = descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get());
+			m_outTables[m_outTables.size() - 2] = descriptorTable->GetCbvSrvUavTable(m_descriptorTableLib.get());
 		}
 
 		{
 			const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 			descriptorTable->SetDescriptors(0, 1, &pDepth->BinZ->GetUAV());
-			m_outTables[m_outTables.size() - 3] = descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get());
+			m_outTables[m_outTables.size() - 3] = descriptorTable->GetCbvSrvUavTable(m_descriptorTableLib.get());
 		}
 	}
 }
@@ -207,7 +207,7 @@ void SoftGraphicsPipeline::Draw(CommandList* pCommandList, uint32_t numVertices)
 		m_vertexBufferView
 	};
 	descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
-	m_srvTables[SRV_TABLE_VS] = descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get());
+	m_srvTables[SRV_TABLE_VS] = descriptorTable->GetCbvSrvUavTable(m_descriptorTableLib.get());
 
 	draw(pCommandList, numVertices, VERTEX_PROCESS);
 }
@@ -221,7 +221,7 @@ void SoftGraphicsPipeline::DrawIndexed(CommandList* pCommandList, uint32_t numIn
 		m_indexBufferView
 	};
 	descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
-	m_srvTables[SRV_TABLE_VS] = descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get());
+	m_srvTables[SRV_TABLE_VS] = descriptorTable->GetCbvSrvUavTable(m_descriptorTableLib.get());
 
 	draw(pCommandList, numIndices, VERTEX_INDEXED);
 }
@@ -275,9 +275,9 @@ bool SoftGraphicsPipeline::CreateIndexBuffer(CommandList* pCommandList,
 	return ib.Upload(pCommandList, uploaders.back().get(), pData, byteWidth);
 }
 
-DescriptorTableCache* SoftGraphicsPipeline::GetDescriptorTableCache() const
+DescriptorTableLib* SoftGraphicsPipeline::GetDescriptorTableLib() const
 {
-	return m_descriptorTableCache.get();
+	return m_descriptorTableLib.get();
 }
 
 bool SoftGraphicsPipeline::createPipelines()
@@ -285,67 +285,67 @@ bool SoftGraphicsPipeline::createPipelines()
 	// Create pipeline layouts
 	{
 		const auto utilPipelineLayout = Util::PipelineLayout::MakeUnique();
-		utilPipelineLayout->SetConstants(0, XUSG_SizeOfInUint32(CBViewPort), 0);
+		utilPipelineLayout->SetConstants(0, XUSG_UINT32_SIZE_OF(CBViewPort), 0);
 		utilPipelineLayout->SetRange(1, DescriptorType::UAV, 7, 0, 0,
 			DescriptorFlag::DESCRIPTORS_VOLATILE | DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		XUSG_X_RETURN(m_pipelineLayouts[BIN_RASTER], utilPipelineLayout->GetPipelineLayout(
-			m_pipelineLayoutCache.get(), PipelineLayoutFlag::NONE, L"BinRasterLayout"), false);
+			m_pipelineLayoutLib.get(), PipelineLayoutFlag::NONE, L"BinRasterLayout"), false);
 	}
 
 	{
 		const auto utilPipelineLayout = Util::PipelineLayout::MakeUnique();
-		utilPipelineLayout->SetConstants(0, XUSG_SizeOfInUint32(CBViewPort), 0);
+		utilPipelineLayout->SetConstants(0, XUSG_UINT32_SIZE_OF(CBViewPort), 0);
 		utilPipelineLayout->SetRange(1, DescriptorType::SRV, 1, 0, 0, DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		utilPipelineLayout->SetRange(2, DescriptorType::UAV, 5, 0, 0,
 			DescriptorFlag::DESCRIPTORS_VOLATILE | DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		XUSG_X_RETURN(m_pipelineLayouts[TILE_RASTER], utilPipelineLayout->GetPipelineLayout(
-			m_pipelineLayoutCache.get(), PipelineLayoutFlag::NONE, L"TileRasterLayout"), false);
+			m_pipelineLayoutLib.get(), PipelineLayoutFlag::NONE, L"TileRasterLayout"), false);
 	}
 
 	// Create compute pipelines
 	{
-		XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::CS, VERTEX_PROCESS, L"VSStage.cso"), false);
+		XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, VERTEX_PROCESS, L"VSStage.cso"), false);
 
 		const auto state = Compute::State::MakeUnique();
 		state->SetPipelineLayout(m_pipelineLayouts[VERTEX_PROCESS]);
-		state->SetShader(m_shaderPool->GetShader(Shader::Stage::CS, VERTEX_PROCESS));
-		XUSG_X_RETURN(m_pipelines[VERTEX_PROCESS], state->GetPipeline(m_computePipelineCache.get(), L"VertexShaderStage"), false);
+		state->SetShader(m_shaderLib->GetShader(Shader::Stage::CS, VERTEX_PROCESS));
+		XUSG_X_RETURN(m_pipelines[VERTEX_PROCESS], state->GetPipeline(m_computePipelineLib.get(), L"VertexShaderStage"), false);
 	}
 
 	{
-		XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::CS, VERTEX_INDEXED, L"VSStageIndexed.cso"), false);
+		XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, VERTEX_INDEXED, L"VSStageIndexed.cso"), false);
 
 		const auto state = Compute::State::MakeUnique();
 		state->SetPipelineLayout(m_pipelineLayouts[VERTEX_INDEXED]);
-		state->SetShader(m_shaderPool->GetShader(Shader::Stage::CS, VERTEX_INDEXED));
-		XUSG_X_RETURN(m_pipelines[VERTEX_INDEXED], state->GetPipeline(m_computePipelineCache.get(), L"VertexShaderStageIndexed"), false);
+		state->SetShader(m_shaderLib->GetShader(Shader::Stage::CS, VERTEX_INDEXED));
+		XUSG_X_RETURN(m_pipelines[VERTEX_INDEXED], state->GetPipeline(m_computePipelineLib.get(), L"VertexShaderStageIndexed"), false);
 	}
 
 	{
-		XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::CS, BIN_RASTER, L"BinRaster.cso"), false);
+		XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, BIN_RASTER, L"BinRaster.cso"), false);
 
 		const auto state = Compute::State::MakeUnique();
 		state->SetPipelineLayout(m_pipelineLayouts[BIN_RASTER]);
-		state->SetShader(m_shaderPool->GetShader(Shader::Stage::CS, BIN_RASTER));
-		XUSG_X_RETURN(m_pipelines[BIN_RASTER], state->GetPipeline(m_computePipelineCache.get(), L"BinRaster"), false);
+		state->SetShader(m_shaderLib->GetShader(Shader::Stage::CS, BIN_RASTER));
+		XUSG_X_RETURN(m_pipelines[BIN_RASTER], state->GetPipeline(m_computePipelineLib.get(), L"BinRaster"), false);
 	}
 
 	{
-		XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::CS, TILE_RASTER, L"TileRaster.cso"), false);
+		XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, TILE_RASTER, L"TileRaster.cso"), false);
 
 		const auto state = Compute::State::MakeUnique();
 		state->SetPipelineLayout(m_pipelineLayouts[TILE_RASTER]);
-		state->SetShader(m_shaderPool->GetShader(Shader::Stage::CS, TILE_RASTER));
-		XUSG_X_RETURN(m_pipelines[TILE_RASTER], state->GetPipeline(m_computePipelineCache.get(), L"TileRaster"), false);
+		state->SetShader(m_shaderLib->GetShader(Shader::Stage::CS, TILE_RASTER));
+		XUSG_X_RETURN(m_pipelines[TILE_RASTER], state->GetPipeline(m_computePipelineLib.get(), L"TileRaster"), false);
 	}
 
 	{
-		XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::CS, PIX_RASTER, L"PixelRaster.cso"), false);
+		XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, PIX_RASTER, L"PixelRaster.cso"), false);
 
 		const auto state = Compute::State::MakeUnique();
 		state->SetPipelineLayout(m_pipelineLayouts[PIX_RASTER]);
-		state->SetShader(m_shaderPool->GetShader(Shader::Stage::CS, PIX_RASTER));
-		XUSG_X_RETURN(m_pipelines[PIX_RASTER], state->GetPipeline(m_computePipelineCache.get(), L"BinRaster"), false);
+		state->SetShader(m_shaderLib->GetShader(Shader::Stage::CS, PIX_RASTER));
+		XUSG_X_RETURN(m_pipelines[PIX_RASTER], state->GetPipeline(m_computePipelineLib.get(), L"BinRaster"), false);
 	}
 
 	return true;
@@ -387,7 +387,7 @@ bool SoftGraphicsPipeline::createDescriptorTables()
 			m_binPrimitives->GetSRV()
 		};
 		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
-		XUSG_X_RETURN(m_srvTables[SRV_TABLE_TR], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+		XUSG_X_RETURN(m_srvTables[SRV_TABLE_TR], descriptorTable->GetCbvSrvUavTable(m_descriptorTableLib.get()), false);
 	}
 
 	const auto numAttribs = static_cast<uint32_t>(m_vertexAttribs.size());
@@ -398,7 +398,7 @@ bool SoftGraphicsPipeline::createDescriptorTables()
 		descriptors.push_back(m_tilePrimitives->GetSRV());
 		for (const auto& attrib : m_vertexAttribs) descriptors.push_back(attrib->GetSRV());
 		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(descriptors.size()), descriptors.data());
-		XUSG_X_RETURN(m_srvTables[SRV_TABLE_PS], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+		XUSG_X_RETURN(m_srvTables[SRV_TABLE_PS], descriptorTable->GetCbvSrvUavTable(m_descriptorTableLib.get()), false);
 	}
 
 	{
@@ -408,7 +408,7 @@ bool SoftGraphicsPipeline::createDescriptorTables()
 		descriptors.push_back(m_vertexPos->GetUAV());
 		for (const auto& attrib : m_vertexAttribs) descriptors.push_back(attrib->GetUAV());
 		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(descriptors.size()), descriptors.data());
-		XUSG_X_RETURN(m_uavTables[UAV_TABLE_VS], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+		XUSG_X_RETURN(m_uavTables[UAV_TABLE_VS], descriptorTable->GetCbvSrvUavTable(m_descriptorTableLib.get()), false);
 	}
 
 	{
@@ -426,7 +426,7 @@ bool SoftGraphicsPipeline::createDescriptorTables()
 		descriptors.push_back(m_binPrimCount->GetUAV());
 		descriptors.push_back(m_binPrimitives->GetUAV());
 		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(descriptors.size()), descriptors.data());
-		XUSG_X_RETURN(m_uavTables[UAV_TABLE_RS], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+		XUSG_X_RETURN(m_uavTables[UAV_TABLE_RS], descriptorTable->GetCbvSrvUavTable(m_descriptorTableLib.get()), false);
 	}
 
 	return true;
@@ -464,7 +464,7 @@ void SoftGraphicsPipeline::draw(CommandList* pCommandList, uint32_t num, StageIn
 
 	const DescriptorPool descriptorPools[] =
 	{
-		m_descriptorTableCache->GetDescriptorPool(CBV_SRV_UAV_POOL),
+		m_descriptorTableLib->GetDescriptorPool(CBV_SRV_UAV_POOL),
 		//m_descriptorTableCache->GetDescriptorPool(SAMPLER_POOL)
 	};
 	pCommandList->SetDescriptorPools(static_cast<uint32_t>(size(descriptorPools)), descriptorPools);
@@ -563,7 +563,7 @@ void SoftGraphicsPipeline::rasterizer(CommandList* pCommandList, uint32_t numTri
 	{
 		// Set descriptor tables
 		pCommandList->SetComputePipelineLayout(m_pipelineLayouts[BIN_RASTER]);
-		pCommandList->SetCompute32BitConstants(0, XUSG_SizeOfInUint32(cbViewport), &cbViewport);
+		pCommandList->SetCompute32BitConstants(0, XUSG_UINT32_SIZE_OF(cbViewport), &cbViewport);
 		pCommandList->SetComputeDescriptorTable(1, m_uavTables[UAV_TABLE_RS]);
 
 		// Set pipeline state
@@ -583,7 +583,7 @@ void SoftGraphicsPipeline::rasterizer(CommandList* pCommandList, uint32_t numTri
 	{
 		// Set descriptor tables
 		pCommandList->SetComputePipelineLayout(m_pipelineLayouts[TILE_RASTER]);
-		pCommandList->SetCompute32BitConstants(0, XUSG_SizeOfInUint32(cbViewport), &cbViewport);
+		pCommandList->SetCompute32BitConstants(0, XUSG_UINT32_SIZE_OF(cbViewport), &cbViewport);
 		pCommandList->SetComputeDescriptorTable(1, m_srvTables[SRV_TABLE_TR]);
 		pCommandList->SetComputeDescriptorTable(2, m_uavTables[UAV_TABLE_RS]);
 
@@ -609,7 +609,7 @@ void SoftGraphicsPipeline::rasterizer(CommandList* pCommandList, uint32_t numTri
 		pCommandList->SetComputePipelineLayout(m_pipelineLayouts[PIX_RASTER]);
 		for (auto i = 0u; i < baseIdx; ++i)
 			pCommandList->SetComputeDescriptorTable(i, m_extPsTables[i]);
-		pCommandList->SetCompute32BitConstants(baseIdx, XUSG_SizeOfInUint32(cbViewport), &cbViewport);
+		pCommandList->SetCompute32BitConstants(baseIdx, XUSG_UINT32_SIZE_OF(cbViewport), &cbViewport);
 		pCommandList->SetComputeDescriptorTable(baseIdx + 1, m_srvTables[SRV_TABLE_PS]);
 		pCommandList->SetComputeDescriptorTable(baseIdx + 2, m_uavTables[UAV_TABLE_RS]);
 		pCommandList->SetComputeDescriptorTable(baseIdx + 3, m_outTables[0]);

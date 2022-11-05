@@ -14,8 +14,8 @@
 #define XUSG_N_RETURN(x, r)				XUSG_C_RETURN(!(x), r)
 #define XUSG_X_RETURN(x, f, r)			{ x = f; XUSG_N_RETURN(x, r); }
 
-#define XUSG_DIV_UP(x, n)				(((x) - 1) / (n) + 1)
-#define XUSG_SizeOfInUint32(obj)		XUSG_DIV_UP(sizeof(obj), sizeof(uint32_t))
+#define XUSG_DIV_UP(x, n)				(((x) + (n) - 1) / (n))
+#define XUSG_UINT32_SIZE_OF(obj)		XUSG_DIV_UP(sizeof(obj), sizeof(uint32_t))
 
 #define XUSG_APPEND_ALIGNED_ELEMENT		0xffffffff
 #define XUSG_BARRIER_ALL_SUBRESOURCES	0xffffffff
@@ -69,7 +69,7 @@ namespace XUSG
 		DIRECTX_12
 	};
 
-	enum class Format : uint32_t
+	enum class Format : uint8_t
 	{
 		UNKNOWN,
 		R32G32B32A32_TYPELESS,
@@ -240,6 +240,7 @@ namespace XUSG
 		LINESTRIP,
 		TRIANGLELIST,
 		TRIANGLESTRIP,
+		TRIANGLEFAN,
 		LINELIST_ADJ,
 		LINESTRIP_ADJ,
 		TRIANGLELIST_ADJ,
@@ -278,13 +279,13 @@ namespace XUSG
 		CONTROL_POINT32_PATCHLIST
 	};
 
-	enum class FillMode
+	enum class FillMode : uint8_t
 	{
 		WIREFRAME,
 		SOLID
 	};
 
-	enum class CullMode
+	enum class CullMode : uint8_t
 	{
 		NONE,
 		FRONT,
@@ -314,7 +315,7 @@ namespace XUSG
 		NUM
 	};
 
-	enum class IndirectArgumentType : uint32_t
+	enum class IndirectArgumentType : uint8_t
 	{
 		DRAW,
 		DRAW_INDEXED,
@@ -324,7 +325,9 @@ namespace XUSG
 		CONSTANT,
 		CONSTANT_BUFFER_VIEW,
 		SHADER_RESOURCE_VIEW,
-		UNORDERED_ACCESS_VIEW
+		UNORDERED_ACCESS_VIEW,
+		DISPATCH_RAYS,
+		DISPATCH_MESH
 	};
 
 	enum class MemoryFlag : uint32_t
@@ -386,7 +389,8 @@ namespace XUSG
 		RAYTRACING_ACCELERATION_STRUCTURE = (1 << 15),
 		SHADING_RATE_SOURCE = (1 << 16),
 
-		GENERAL_READ = (VERTEX_AND_CONSTANT_BUFFER | INDEX_BUFFER | NON_PIXEL_SHADER_RESOURCE | PIXEL_SHADER_RESOURCE | INDIRECT_ARGUMENT | COPY_SOURCE | PREDICATION),
+		SHADER_RESOURCE = NON_PIXEL_SHADER_RESOURCE | PIXEL_SHADER_RESOURCE,
+		GENERAL_READ = VERTEX_AND_CONSTANT_BUFFER | INDEX_BUFFER | SHADER_RESOURCE | INDIRECT_ARGUMENT | COPY_SOURCE | PREDICATION,
 		PRESENT = 0,
 
 		VIDEO_DECODE_READ = (1 << 17),
@@ -403,7 +407,8 @@ namespace XUSG
 	{
 		NONE = 0,
 		BEGIN_ONLY = (1 << 0),
-		END_ONLY = (1 << 1)
+		END_ONLY = (1 << 1),
+		RESET_SRC_STATE = (1 << 2)
 	};
 
 	XUSG_DEF_ENUM_FLAG_OPERATORS(BarrierFlag);
@@ -609,6 +614,55 @@ namespace XUSG
 		NUM_DESCRIPTOR_POOL
 	};
 
+	enum class SamplerFilter : uint8_t
+	{
+		MIN_MAG_MIP_POINT,
+		MIN_MAG_POINT_MIP_LINEAR,
+		MIN_POINT_MAG_LINEAR_MIP_POINT,
+		MIN_POINT_MAG_MIP_LINEAR,
+		MIN_LINEAR_MAG_MIP_POINT,
+		MIN_LINEAR_MAG_POINT_MIP_LINEAR,
+		MIN_MAG_LINEAR_MIP_POINT,
+		MIN_MAG_MIP_LINEAR,
+		ANISOTROPIC,
+		COMPARISON_MIN_MAG_MIP_POINT,
+		COMPARISON_MIN_MAG_POINT_MIP_LINEAR,
+		COMPARISON_MIN_POINT_MAG_LINEAR_MIP_POINT,
+		COMPARISON_MIN_POINT_MAG_MIP_LINEAR,
+		COMPARISON_MIN_LINEAR_MAG_MIP_POINT,
+		COMPARISON_MIN_LINEAR_MAG_POINT_MIP_LINEAR,
+		COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
+		COMPARISON_MIN_MAG_MIP_LINEAR,
+		COMPARISON_ANISOTROPIC,
+		MINIMUM_MIN_MAG_MIP_POINT,
+		MINIMUM_MIN_MAG_POINT_MIP_LINEAR,
+		MINIMUM_MIN_POINT_MAG_LINEAR_MIP_POINT,
+		MINIMUM_MIN_POINT_MAG_MIP_LINEAR,
+		MINIMUM_MIN_LINEAR_MAG_MIP_POINT,
+		MINIMUM_MIN_LINEAR_MAG_POINT_MIP_LINEAR,
+		MINIMUM_MIN_MAG_LINEAR_MIP_POINT,
+		MINIMUM_MIN_MAG_MIP_LINEAR,
+		MINIMUM_ANISOTROPIC,
+		MAXIMUM_MIN_MAG_MIP_POINT,
+		MAXIMUM_MIN_MAG_POINT_MIP_LINEAR,
+		MAXIMUM_MIN_POINT_MAG_LINEAR_MIP_POINT,
+		MAXIMUM_MIN_POINT_MAG_MIP_LINEAR,
+		MAXIMUM_MIN_LINEAR_MAG_MIP_POINT,
+		MAXIMUM_MIN_LINEAR_MAG_POINT_MIP_LINEAR,
+		MAXIMUM_MIN_MAG_LINEAR_MIP_POINT,
+		MAXIMUM_MIN_MAG_MIP_LINEAR,
+		MAXIMUM_ANISOTROPIC
+	};
+
+	enum class TextureAddressMode : uint8_t
+	{
+		WRAP,
+		MIRROR,
+		CLAMP,
+		BORDER,
+		MIRROR_ONCE
+	};
+
 	enum SamplerPreset : uint8_t
 	{
 		POINT_WRAP,
@@ -740,21 +794,19 @@ namespace XUSG
 		uint64_t BufferFilledSizeLocation;
 	};
 
-	struct SamplerDesc
+	struct Sampler
 	{
-		uint16_t Filter;
-		uint8_t AddressU;
-		uint8_t AddressV;
-		uint8_t AddressW;
+		SamplerFilter Filter;
+		TextureAddressMode AddressU;
+		TextureAddressMode AddressV;
+		TextureAddressMode AddressW;
 		float MipLODBias;
 		uint8_t MaxAnisotropy;
-		uint8_t ComparisonFunc;
+		ComparisonFunc Comparison;
 		float BorderColor[4];
 		float MinLOD;
 		float MaxLOD;
 	};
-
-	using Sampler = std::shared_ptr<SamplerDesc>;
 
 	// Pipeline state related
 	struct Viewport
@@ -1293,17 +1345,18 @@ namespace XUSG
 
 		virtual uint32_t SetBarrier(ResourceBarrier* pBarriers, ResourceState dstState,
 			uint32_t numBarriers = 0, uint32_t subresource = XUSG_BARRIER_ALL_SUBRESOURCES,
-			BarrierFlag flags = BarrierFlag::NONE) = 0;
+			BarrierFlag flags = BarrierFlag::NONE, uint32_t threadIdx = 0) = 0;
 
-		virtual ResourceBarrier	Transition(ResourceState dstState, uint32_t subresource = XUSG_BARRIER_ALL_SUBRESOURCES,
-			BarrierFlag flag = BarrierFlag::NONE) = 0;
-		virtual ResourceState	GetResourceState(uint32_t subresource = 0) const = 0;
+		virtual ResourceState Transition(ResourceState dstState, uint32_t subresource = XUSG_BARRIER_ALL_SUBRESOURCES,
+			BarrierFlag flag = BarrierFlag::NONE, uint32_t threadIdx = 0) = 0;
+		virtual ResourceState GetResourceState(uint32_t subresource = 0, uint32_t threadIdx = 0) const = 0;
 
 		virtual uint64_t GetWidth() const = 0;
 
 		virtual uint64_t GetVirtualAddress(int offset = 0) const = 0;
 
-		virtual void Create(void* pDeviceHandle, void* pResourceHandle, const wchar_t* name = nullptr) = 0;
+		virtual void Create(void* pDeviceHandle, void* pResourceHandle,
+			const wchar_t* name = nullptr, uint32_t maxThreads = 1) = 0;
 
 		virtual void* GetHandle() const = 0;
 
@@ -1378,12 +1431,15 @@ namespace XUSG
 		virtual bool Create(const Device* pDevice, uint32_t width, uint32_t height, Format format,
 			uint16_t arraySize = 1, ResourceFlag resourceFlags = ResourceFlag::NONE,
 			uint8_t numMips = 1, uint8_t sampleCount = 1, bool isCubeMap = false,
-			MemoryFlag memoryFlags = MemoryFlag::NONE, const wchar_t* name = nullptr) = 0;
+			MemoryFlag memoryFlags = MemoryFlag::NONE, const wchar_t* name = nullptr,
+			uint32_t maxThreads = 1) = 0;
 		virtual bool Upload(CommandList* pCommandList, Resource* pUploader,
 			const SubresourceData* pSubresourceData, uint32_t numSubresources = 1,
-			ResourceState dstState = ResourceState::COMMON, uint32_t firstSubresource = 0) = 0;
+			ResourceState dstState = ResourceState::COMMON, uint32_t firstSubresource = 0,
+			uint32_t threadIdx = 0) = 0;
 		virtual bool Upload(CommandList* pCommandList, Resource* pUploader, const void* pData,
-			uint8_t stride = sizeof(float), ResourceState dstState = ResourceState::COMMON) = 0;
+			uint8_t stride = sizeof(float), ResourceState dstState = ResourceState::COMMON,
+			uint32_t threadIdx = 0) = 0;
 		virtual bool CreateSRVs(uint16_t arraySize, Format format = Format::UNKNOWN, uint8_t numMips = 1,
 			uint8_t sampleCount = 1, bool isCubeMap = false) = 0;
 		virtual bool CreateSRVLevels(uint16_t arraySize, uint8_t numMips, Format format = Format::UNKNOWN,
@@ -1393,9 +1449,10 @@ namespace XUSG
 
 		virtual uint32_t SetBarrier(ResourceBarrier* pBarriers, ResourceState dstState,
 			uint32_t numBarriers = 0, uint32_t subresource = XUSG_BARRIER_ALL_SUBRESOURCES,
-			BarrierFlag flags = BarrierFlag::NONE) = 0;
+			BarrierFlag flags = BarrierFlag::NONE, uint32_t threadIdx = 0) = 0;
 		virtual uint32_t SetBarrier(ResourceBarrier* pBarriers, uint8_t mipLevel, ResourceState dstState,
-			uint32_t numBarriers = 0, uint32_t slice = 0, BarrierFlag flags = BarrierFlag::NONE) = 0;
+			uint32_t numBarriers = 0, uint32_t slice = 0, BarrierFlag flags = BarrierFlag::NONE,
+			uint32_t threadIdx = 0) = 0;
 
 		virtual void Blit(const CommandList* pCommandList, uint32_t groupSizeX, uint32_t groupSizeY,
 			uint32_t groupSizeZ, const DescriptorTable& uavSrvTable, uint32_t uavSrvSlot = 0,
@@ -1406,14 +1463,14 @@ namespace XUSG
 		virtual uint32_t Blit(CommandList* pCommandList, ResourceBarrier* pBarriers, uint32_t groupSizeX,
 			uint32_t groupSizeY, uint32_t groupSizeZ, uint8_t mipLevel, int8_t srcMipLevel,
 			ResourceState srcState, const DescriptorTable& uavSrvTable, uint32_t uavSrvSlot = 0,
-			uint32_t numBarriers = 0, const DescriptorTable& srvTable = nullptr,
-			uint32_t srvSlot = 0, uint16_t baseSlice = 0, uint16_t numSlices = 0) = 0;
+			uint32_t numBarriers = 0, const DescriptorTable& srvTable = nullptr, uint32_t srvSlot = 0,
+			uint16_t baseSlice = 0, uint16_t numSlices = 0, uint32_t threadIdx = 0) = 0;
 		virtual uint32_t GenerateMips(CommandList* pCommandList, ResourceBarrier* pBarriers, uint32_t groupSizeX,
 			uint32_t groupSizeY, uint32_t groupSizeZ, ResourceState dstState, const PipelineLayout& pipelineLayout,
 			const Pipeline& pipeline, const DescriptorTable* pUavSrvTables, uint32_t uavSrvSlot = 0,
 			const DescriptorTable& samplerTable = nullptr, uint32_t samplerSlot = 1, uint32_t numBarriers = 0,
 			const DescriptorTable* pSrvTables = nullptr, uint32_t srvSlot = 0, uint8_t baseMip = 1,
-			uint8_t numMips = 0, uint16_t baseSlice = 0, uint16_t numSlices = 0) = 0;
+			uint8_t numMips = 0, uint16_t baseSlice = 0, uint16_t numSlices = 0, uint32_t threadIdx = 0) = 0;
 
 		virtual const Descriptor& GetUAV(uint8_t index = 0) const = 0;
 		virtual const Descriptor& GetPackedUAV(uint8_t index = 0) const = 0;
@@ -1451,13 +1508,16 @@ namespace XUSG
 		virtual bool Create(const Device* pDevice, uint32_t width, uint32_t height, Format format,
 			uint16_t arraySize = 1, ResourceFlag resourceFlags = ResourceFlag::NONE,
 			uint8_t numMips = 1, uint8_t sampleCount = 1, const float* pClearColor = nullptr,
-			bool isCubeMap = false, MemoryFlag memoryFlags = MemoryFlag::NONE, const wchar_t* name = nullptr) = 0;
+			bool isCubeMap = false, MemoryFlag memoryFlags = MemoryFlag::NONE,
+			const wchar_t* name = nullptr, uint32_t maxThreads = 1) = 0;
 		// CreateArray() will create a single array RTV of n slices
 		virtual bool CreateArray(const Device* pDevice, uint32_t width, uint32_t height, uint16_t arraySize,
 			Format format, ResourceFlag resourceFlags = ResourceFlag::NONE, uint8_t numMips = 1,
 			uint8_t sampleCount = 1, const float* pClearColor = nullptr, bool isCubeMap = false,
-			MemoryFlag memoryFlags = MemoryFlag::NONE, const wchar_t* name = nullptr) = 0;
-		virtual bool CreateFromSwapChain(const Device* pDevice, const SwapChain* pSwapChain, uint32_t bufferIndex) = 0;
+			MemoryFlag memoryFlags = MemoryFlag::NONE, const wchar_t* name = nullptr,
+			uint32_t maxThreads = 1) = 0;
+		virtual bool CreateFromSwapChain(const Device* pDevice, const SwapChain* pSwapChain,
+			uint32_t bufferIndex, uint32_t maxThreads = 1) = 0;
 
 		virtual void Blit(const CommandList* pCommandList, const DescriptorTable& srcSrvTable,
 			uint32_t srcSlot = 0, uint8_t mipLevel = 0, uint16_t baseSlice = 0,
@@ -1468,12 +1528,12 @@ namespace XUSG
 		virtual uint32_t Blit(CommandList* pCommandList, ResourceBarrier* pBarriers, uint8_t mipLevel,
 			int8_t srcMipLevel, ResourceState srcState, const DescriptorTable& srcSrvTable,
 			uint32_t srcSlot = 0, uint32_t numBarriers = 0, uint16_t baseSlice = 0, uint16_t numSlices = 0,
-			uint32_t offsetForSliceId = 0, uint32_t cbSlot = 2) = 0;
+			uint32_t offsetForSliceId = 0, uint32_t cbSlot = 2, uint32_t threadIdx = 0) = 0;
 		virtual uint32_t GenerateMips(CommandList* pCommandList, ResourceBarrier* pBarriers, ResourceState dstState,
 			const PipelineLayout& pipelineLayout, const Pipeline& pipeline, const DescriptorTable* pSrcSrvTables,
 			uint32_t srcSlot = 0, const DescriptorTable& samplerTable = nullptr, uint32_t samplerSlot = 1,
 			uint32_t numBarriers = 0, uint8_t baseMip = 1, uint8_t numMips = 0, uint16_t baseSlice = 0,
-			uint16_t numSlices = 0, uint32_t offsetForSliceId = 0, uint32_t cbSlot = 2) = 0;
+			uint16_t numSlices = 0, uint32_t offsetForSliceId = 0, uint32_t cbSlot = 2, uint32_t threadIdx = 0) = 0;
 
 		virtual const Descriptor& GetRTV(uint16_t slice = 0, uint8_t mipLevel = 0) const = 0;
 
@@ -1498,19 +1558,17 @@ namespace XUSG
 			Format format = Format::UNKNOWN, ResourceFlag resourceFlags = ResourceFlag::NONE,
 			uint16_t arraySize = 1, uint8_t numMips = 1, uint8_t sampleCount = 1,
 			float clearDepth = 1.0f, uint8_t clearStencil = 0, bool isCubeMap = false,
-			MemoryFlag memoryFlags = MemoryFlag::NONE, const wchar_t* name = nullptr) = 0;
+			MemoryFlag memoryFlags = MemoryFlag::NONE, const wchar_t* name = nullptr,
+			uint32_t maxThreads = 1) = 0;
 		virtual bool CreateArray(const Device* pDevice, uint32_t width, uint32_t height, uint16_t arraySize,
 			Format format = Format::UNKNOWN, ResourceFlag resourceFlags = ResourceFlag::NONE,
 			uint8_t numMips = 1, uint8_t sampleCount = 1, float clearDepth = 1.0f,
 			uint8_t clearStencil = 0, bool isCubeMap = false, MemoryFlag memoryFlags = MemoryFlag::NONE,
-			const wchar_t* name = nullptr) = 0;
+			const wchar_t* name = nullptr, uint32_t maxThreads = 1) = 0;
 
 		virtual const Descriptor& GetDSV(uint16_t slice = 0, uint8_t mipLevel = 0) const = 0;
 		virtual const Descriptor& GetReadOnlyDSV(uint16_t slice = 0, uint8_t mipLevel = 0) const = 0;
 		virtual const Descriptor& GetStencilSRV() const = 0;
-
-		virtual uint16_t	GetArraySize() const = 0;
-		virtual uint8_t		GetNumMips() const = 0;
 
 		using uptr = std::unique_ptr<DepthStencil>;
 		using sptr = std::shared_ptr<DepthStencil>;
@@ -1531,7 +1589,8 @@ namespace XUSG
 
 		virtual bool Create(const Device* pDevice, uint32_t width, uint32_t height, uint16_t depth,
 			Format format, ResourceFlag resourceFlags = ResourceFlag::NONE, uint8_t numMips = 1,
-			MemoryFlag memoryFlags = MemoryFlag::NONE, const wchar_t* name = nullptr) = 0;
+			MemoryFlag memoryFlags = MemoryFlag::NONE, const wchar_t* name = nullptr,
+			uint32_t maxThreads = 1) = 0;
 		virtual bool CreateSRVs(Format format = Format::UNKNOWN, uint8_t numMips = 1) = 0;
 		virtual bool CreateSRVLevels(uint8_t numMips, Format format = Format::UNKNOWN) = 0;
 		virtual bool CreateUAVs(Format format = Format::UNKNOWN, uint8_t numMips = 1,
@@ -1560,9 +1619,10 @@ namespace XUSG
 			MemoryType memoryType = MemoryType::DEFAULT, uint32_t numSRVs = 1,
 			const uint32_t* firstSRVElements = nullptr, uint32_t numUAVs = 1,
 			const uint32_t* firstUAVElements = nullptr, MemoryFlag memoryFlags = MemoryFlag::NONE,
-			const wchar_t* name = nullptr) = 0;
+			const wchar_t* name = nullptr, uint32_t maxThreads = 1) = 0;
 		virtual bool Upload(CommandList* pCommandList, Resource* pUploader, const void* pData, size_t size,
-			uint32_t descriptorIndex = 0, ResourceState dstState = ResourceState::COMMON) = 0;
+			uint32_t descriptorIndex = 0, ResourceState dstState = ResourceState::COMMON,
+			uint32_t threadIdx = 0) = 0;
 		virtual bool CreateSRVs(size_t byteWidth, const uint32_t* firstElements = nullptr,
 			uint32_t numDescriptors = 1) = 0;
 		virtual bool CreateUAVs(size_t byteWidth, const uint32_t* firstElements = nullptr,
@@ -1601,7 +1661,7 @@ namespace XUSG
 			uint32_t numSRVs = 1, const uint32_t* firstSRVElements = nullptr,
 			uint32_t numUAVs = 1, const uint32_t* firstUAVElements = nullptr,
 			MemoryFlag memoryFlags = MemoryFlag::NONE, const wchar_t* name = nullptr,
-			const size_t* counterOffsetsInBytes = nullptr) = 0;
+			const size_t* counterOffsetsInBytes = nullptr, uint32_t maxThreads = 1) = 0;
 
 		virtual bool CreateSRVs(uint32_t numElements, uint32_t stride,
 			const uint32_t* firstElements = nullptr, uint32_t numDescriptors = 1) = 0;
@@ -1633,7 +1693,8 @@ namespace XUSG
 			ResourceFlag resourceFlags = ResourceFlag::NONE, MemoryType memoryType = MemoryType::DEFAULT,
 			uint32_t numSRVs = 1, const uint32_t* firstSRVElements = nullptr,
 			uint32_t numUAVs = 1, const uint32_t* firstUAVElements = nullptr,
-			MemoryFlag memoryFlags = MemoryFlag::NONE, const wchar_t* name = nullptr) = 0;
+			MemoryFlag memoryFlags = MemoryFlag::NONE, const wchar_t* name = nullptr,
+			uint32_t maxThreads = 1) = 0;
 
 		virtual bool CreateSRVs(uint32_t numElements, Format format, uint32_t stride,
 			const uint32_t* firstElements = nullptr, uint32_t numDescriptors = 1) = 0;
@@ -1712,7 +1773,7 @@ namespace XUSG
 	//--------------------------------------------------------------------------------------
 	// Descriptor
 	//--------------------------------------------------------------------------------------
-	class DescriptorTableCache;
+	class DescriptorTableLib;
 
 	namespace Util
 	{
@@ -1724,22 +1785,24 @@ namespace XUSG
 
 			virtual void SetDescriptors(uint32_t start, uint32_t num, const Descriptor* srcDescriptors,
 				uint8_t descriptorPoolIndex = 0) = 0;
+			virtual void SetSamplers(uint32_t start, uint32_t num, const Sampler* const* ppSamplers,
+				uint8_t descriptorPoolIndex = 0) = 0;
 			virtual void SetSamplers(uint32_t start, uint32_t num, const SamplerPreset* presets,
-				DescriptorTableCache* pDescriptorTableCache, uint8_t descriptorPoolIndex = 0) = 0;
+				DescriptorTableLib* pDescriptorTableLib, uint8_t descriptorPoolIndex = 0) = 0;
 
-			virtual XUSG::DescriptorTable CreateCbvSrvUavTable(DescriptorTableCache* pDescriptorTableCache,
+			virtual XUSG::DescriptorTable CreateCbvSrvUavTable(DescriptorTableLib* pDescriptorTableLib,
 				const XUSG::DescriptorTable& table = nullptr) = 0;
-			virtual XUSG::DescriptorTable GetCbvSrvUavTable(DescriptorTableCache* pDescriptorTableCache,
-				const XUSG::DescriptorTable& table = nullptr) = 0;
-
-			virtual XUSG::DescriptorTable CreateSamplerTable(DescriptorTableCache* pDescriptorTableCache,
-				const XUSG::DescriptorTable& table = nullptr) = 0;
-			virtual XUSG::DescriptorTable GetSamplerTable(DescriptorTableCache* pDescriptorTableCache,
+			virtual XUSG::DescriptorTable GetCbvSrvUavTable(DescriptorTableLib* pDescriptorTableLib,
 				const XUSG::DescriptorTable& table = nullptr) = 0;
 
-			virtual Framebuffer CreateFramebuffer(DescriptorTableCache* pDescriptorTableCache,
+			virtual XUSG::DescriptorTable CreateSamplerTable(DescriptorTableLib* pDescriptorTableLib,
+				const XUSG::DescriptorTable& table = nullptr) = 0;
+			virtual XUSG::DescriptorTable GetSamplerTable(DescriptorTableLib* pDescriptorTableLib,
+				const XUSG::DescriptorTable& table = nullptr) = 0;
+
+			virtual Framebuffer CreateFramebuffer(DescriptorTableLib* pDescriptorTableLib,
 				const Descriptor* pDsv = nullptr, const Framebuffer* pFramebuffer = nullptr) = 0;
-			virtual Framebuffer GetFramebuffer(DescriptorTableCache* pDescriptorTableCache,
+			virtual Framebuffer GetFramebuffer(DescriptorTableLib* pDescriptorTableLib,
 				const Descriptor* pDsv = nullptr, const Framebuffer* pFramebuffer = nullptr) = 0;
 
 			virtual const std::string& GetKey() const = 0;
@@ -1752,12 +1815,12 @@ namespace XUSG
 		};
 	}
 
-	class XUSG_INTERFACE DescriptorTableCache
+	class XUSG_INTERFACE DescriptorTableLib
 	{
 	public:
-		//DescriptorTableCache();
-		//DescriptorTableCache(const Device* pDevice, const wchar_t* name = nullptr);
-		virtual ~DescriptorTableCache() {};
+		//DescriptorTableLib();
+		//DescriptorTableLib(const Device* pDevice, const wchar_t* name = nullptr);
+		virtual ~DescriptorTableLib() {};
 
 		virtual void SetDevice(const Device* pDevice) = 0;
 		virtual void SetName(const wchar_t* name) = 0;
@@ -1778,12 +1841,12 @@ namespace XUSG
 
 		virtual DescriptorPool GetDescriptorPool(DescriptorPoolType type, uint8_t index = 0) const = 0;
 
-		virtual const Sampler& GetSampler(SamplerPreset preset) = 0;
+		virtual const Sampler* GetSampler(SamplerPreset preset) = 0;
 
 		virtual uint32_t GetDescriptorStride(DescriptorPoolType type) const = 0;
 
-		using uptr = std::unique_ptr<DescriptorTableCache>;
-		using sptr = std::shared_ptr<DescriptorTableCache>;
+		using uptr = std::unique_ptr<DescriptorTableLib>;
+		using sptr = std::shared_ptr<DescriptorTableLib>;
 
 		static uptr MakeUnique(API api = API::DIRECTX_12);
 		static sptr MakeShared(API api = API::DIRECTX_12);
@@ -1814,11 +1877,11 @@ namespace XUSG
 	//--------------------------------------------------------------------------------------
 	// Shader
 	//--------------------------------------------------------------------------------------
-	class XUSG_INTERFACE ShaderPool
+	class XUSG_INTERFACE ShaderLib
 	{
 	public:
-		//ShaderPool();
-		virtual ~ShaderPool() {};
+		//ShaderLib();
+		virtual ~ShaderLib() {};
 
 		virtual void SetShader(Shader::Stage stage, uint32_t index, const Blob& shader) = 0;
 		virtual void SetShader(Shader::Stage stage, uint32_t index, const Blob& shader, const Reflector::sptr& reflector) = 0;
@@ -1829,8 +1892,8 @@ namespace XUSG
 		virtual Blob GetShader(Shader::Stage stage, uint32_t index) const = 0;
 		virtual Reflector::sptr GetReflector(Shader::Stage stage, uint32_t index) const = 0;
 
-		using uptr = std::unique_ptr<ShaderPool>;
-		using sptr = std::shared_ptr<ShaderPool>;
+		using uptr = std::unique_ptr<ShaderLib>;
+		using sptr = std::shared_ptr<ShaderLib>;
 
 		static uptr MakeUnique(API api = API::DIRECTX_12);
 		static sptr MakeShared(API api = API::DIRECTX_12);
@@ -1839,7 +1902,7 @@ namespace XUSG
 	//--------------------------------------------------------------------------------------
 	// Pipeline layout
 	//--------------------------------------------------------------------------------------
-	class PipelineLayoutCache;
+	class PipelineLayoutLib;
 
 	namespace Util
 	{
@@ -1859,19 +1922,19 @@ namespace XUSG
 			virtual void SetRootUAV(uint32_t index, uint32_t binding, uint32_t space = 0,
 				DescriptorFlag flags = DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE, Shader::Stage stage = Shader::Stage::ALL) = 0;
 			virtual void SetRootCBV(uint32_t index, uint32_t binding, uint32_t space = 0, Shader::Stage stage = Shader::Stage::ALL) = 0;
-			virtual void SetStaticSamplers(const Sampler* pSamplers, uint32_t num, uint32_t baseBinding,
+			virtual void SetStaticSamplers(const Sampler* const* ppSamplers, uint32_t num, uint32_t baseBinding,
 				uint32_t space = 0, Shader::Stage stage = Shader::Stage::ALL) = 0;
 
-			virtual XUSG::PipelineLayout CreatePipelineLayout(PipelineLayoutCache* pPipelineLayoutCache, PipelineLayoutFlag flags,
+			virtual XUSG::PipelineLayout CreatePipelineLayout(PipelineLayoutLib* pPipelineLayoutLib, PipelineLayoutFlag flags,
 				const wchar_t* name = nullptr) = 0;
-			virtual XUSG::PipelineLayout GetPipelineLayout(PipelineLayoutCache* pPipelineLayoutCache, PipelineLayoutFlag flags,
+			virtual XUSG::PipelineLayout GetPipelineLayout(PipelineLayoutLib* pPipelineLayoutLib, PipelineLayoutFlag flags,
 				const wchar_t* name = nullptr) = 0;
 
-			virtual DescriptorTableLayout CreateDescriptorTableLayout(uint32_t index, PipelineLayoutCache* pPipelineLayoutCache) const = 0;
-			virtual DescriptorTableLayout GetDescriptorTableLayout(uint32_t index, PipelineLayoutCache* pPipelineLayoutCache) const = 0;
+			virtual DescriptorTableLayout CreateDescriptorTableLayout(uint32_t index, PipelineLayoutLib* pPipelineLayoutLib) const = 0;
+			virtual DescriptorTableLayout GetDescriptorTableLayout(uint32_t index, PipelineLayoutLib* pPipelineLayoutLib) const = 0;
 
 			virtual const std::vector<std::string>& GetDescriptorTableLayoutKeys() const = 0;
-			virtual std::string& GetPipelineLayoutKey(PipelineLayoutCache* pPipelineLayoutCache) = 0;
+			virtual std::string& GetPipelineLayoutKey(PipelineLayoutLib* pPipelineLayoutLib) = 0;
 
 			using uptr = std::unique_ptr<PipelineLayout>;
 			using sptr = std::shared_ptr<PipelineLayout>;
@@ -1883,12 +1946,12 @@ namespace XUSG
 		};
 	}
 
-	class XUSG_INTERFACE PipelineLayoutCache
+	class XUSG_INTERFACE PipelineLayoutLib
 	{
 	public:
-		//PipelineLayoutCache();
-		//PipelineLayoutCache(const Device* pDevice) = 0;
-		virtual ~PipelineLayoutCache() {};
+		//PipelineLayoutLib();
+		//PipelineLayoutLib(const Device* pDevice) = 0;
+		virtual ~PipelineLayoutLib() {};
 
 		virtual void SetDevice(const Device* pDevice) = 0;
 		virtual void SetPipelineLayout(const std::string& key, const PipelineLayout& pipelineLayout) = 0;
@@ -1905,8 +1968,8 @@ namespace XUSG
 		virtual DescriptorTableLayout CreateDescriptorTableLayout(uint32_t index, const Util::PipelineLayout* pUtil) = 0;
 		virtual DescriptorTableLayout GetDescriptorTableLayout(uint32_t index, const Util::PipelineLayout* pUtil) = 0;
 
-		using uptr = std::unique_ptr<PipelineLayoutCache>;
-		using sptr = std::shared_ptr<PipelineLayoutCache>;
+		using uptr = std::unique_ptr<PipelineLayoutLib>;
+		using sptr = std::shared_ptr<PipelineLayoutLib>;
 
 		static uptr MakeUnique(API api = API::DIRECTX_12);
 		static sptr MakeShared(API api = API::DIRECTX_12);
@@ -2009,7 +2072,7 @@ namespace XUSG
 		{
 			bool DepthEnable;
 			bool DepthWriteMask;
-			ComparisonFunc DepthFunc;
+			ComparisonFunc Comparison;
 			bool StencilEnable;
 			uint8_t StencilReadMask;
 			uint8_t StencilWriteMask;
@@ -2017,7 +2080,7 @@ namespace XUSG
 			DepthStencilOp BackFace;
 		};
 
-		class PipelineCache;
+		class PipelineLib;
 		
 		class XUSG_INTERFACE State
 		{
@@ -2027,17 +2090,17 @@ namespace XUSG
 
 			virtual void SetPipelineLayout(const PipelineLayout& layout) = 0;
 			virtual void SetShader(Shader::Stage stage, const Blob& shader) = 0;
-			virtual void SetCachedPipeline(const void* pCachedBlob, size_t size) = 0;
+			virtual void SetCachedPipeline(const void* pCachedPipeline, size_t size) = 0;
 			virtual void SetNodeMask(uint32_t nodeMask) = 0;
 
 			virtual void OMSetBlendState(const Blend* pBlend, uint32_t sampleMask = UINT_MAX) = 0;
 			virtual void RSSetState(const Rasterizer* pRasterizer) = 0;
-			virtual void DSSetState(const DepthStencil* DepthStencil) = 0;
+			virtual void DSSetState(const DepthStencil* pDepthStencil) = 0;
 
-			virtual void OMSetBlendState(BlendPreset preset, PipelineCache* pPipelineCache,
+			virtual void OMSetBlendState(BlendPreset preset, PipelineLib* pPipelineLib,
 				uint8_t numColorRTs = 1, uint32_t sampleMask = UINT_MAX) = 0;
-			virtual void RSSetState(RasterizerPreset preset, PipelineCache* pPipelineCache) = 0;
-			virtual void DSSetState(DepthStencilPreset preset, PipelineCache* pPipelineCache) = 0;
+			virtual void RSSetState(RasterizerPreset preset, PipelineLib* pPipelineLib) = 0;
+			virtual void DSSetState(DepthStencilPreset preset, PipelineLib* pPipelineLib) = 0;
 
 			virtual void IASetInputLayout(const InputLayout* pLayout) = 0;
 			virtual void IASetPrimitiveTopologyType(PrimitiveTopologyType type) = 0;
@@ -2049,8 +2112,8 @@ namespace XUSG
 			virtual void OMSetDSVFormat(Format format) = 0;
 			virtual void OMSetSample(uint8_t count, uint8_t quality = 0) = 0;
 
-			virtual Pipeline CreatePipeline(PipelineCache* pPipelineCache, const wchar_t* name = nullptr) const = 0;
-			virtual Pipeline GetPipeline(PipelineCache* pPipelineCache, const wchar_t* name = nullptr) const = 0;
+			virtual Pipeline CreatePipeline(PipelineLib* pPipelineLib, const wchar_t* name = nullptr) const = 0;
+			virtual Pipeline GetPipeline(PipelineLib* pPipelineLib, const wchar_t* name = nullptr) const = 0;
 
 			virtual const std::string& GetKey() const = 0;
 
@@ -2061,12 +2124,12 @@ namespace XUSG
 			static sptr MakeShared(API api = API::DIRECTX_12);
 		};
 
-		class XUSG_INTERFACE PipelineCache
+		class XUSG_INTERFACE PipelineLib
 		{
 		public:
-			//PipelineCache();
-			//PipelineCache(const Device* pDevice);
-			virtual ~PipelineCache() {};
+			//PipelineLib();
+			//PipelineLib(const Device* pDevice);
+			virtual ~PipelineLib() {};
 
 			virtual void SetDevice(const Device* pDevice) = 0;
 			virtual void SetPipeline(const std::string& key, const Pipeline& pipeline) = 0;
@@ -2082,8 +2145,8 @@ namespace XUSG
 			virtual const Rasterizer* GetRasterizer(RasterizerPreset preset) = 0;
 			virtual const DepthStencil* GetDepthStencil(DepthStencilPreset preset) = 0;
 
-			using uptr = std::unique_ptr<PipelineCache>;
-			using sptr = std::shared_ptr<PipelineCache>;
+			using uptr = std::unique_ptr<PipelineLib>;
+			using sptr = std::shared_ptr<PipelineLib>;
 
 			static uptr MakeUnique(API api = API::DIRECTX_12);
 			static sptr MakeShared(API api = API::DIRECTX_12);
@@ -2097,7 +2160,7 @@ namespace XUSG
 	//--------------------------------------------------------------------------------------
 	namespace Compute
 	{
-		class PipelineCache;
+		class PipelineLib;
 		
 		class XUSG_INTERFACE State
 		{
@@ -2107,11 +2170,11 @@ namespace XUSG
 
 			virtual void SetPipelineLayout(const PipelineLayout& layout) = 0;
 			virtual void SetShader(const Blob& shader) = 0;
-			virtual void SetCachedPipeline(const void* pCachedBlob, size_t size) = 0;
+			virtual void SetCachedPipeline(const void* pCachedPipeline, size_t size) = 0;
 			virtual void SetNodeMask(uint32_t nodeMask) = 0;
 
-			virtual Pipeline CreatePipeline(PipelineCache* pPipelineCache, const wchar_t* name = nullptr) const = 0;
-			virtual Pipeline GetPipeline(PipelineCache* pPipelineCache, const wchar_t* name = nullptr) const = 0;
+			virtual Pipeline CreatePipeline(PipelineLib* pPipelineLib, const wchar_t* name = nullptr) const = 0;
+			virtual Pipeline GetPipeline(PipelineLib* pPipelineLib, const wchar_t* name = nullptr) const = 0;
 
 			virtual const std::string& GetKey() const = 0;
 
@@ -2122,12 +2185,12 @@ namespace XUSG
 			static sptr MakeShared(API api = API::DIRECTX_12);
 		};
 
-		class XUSG_INTERFACE PipelineCache
+		class XUSG_INTERFACE PipelineLib
 		{
 		public:
-			//PipelineCache();
-			//PipelineCache(const Device* pDevice);
-			virtual ~PipelineCache() {};
+			//PipelineLib();
+			//PipelineLib(const Device* pDevice);
+			virtual ~PipelineLib() {};
 
 			virtual void SetDevice(const Device* pDevice) = 0;
 			virtual void SetPipeline(const std::string& key, const Pipeline& pipeline) = 0;
@@ -2135,8 +2198,8 @@ namespace XUSG
 			virtual Pipeline CreatePipeline(const State* pState, const wchar_t* name = nullptr) = 0;
 			virtual Pipeline GetPipeline(const State* pState, const wchar_t* name = nullptr) = 0;
 
-			using uptr = std::unique_ptr<PipelineCache>;
-			using sptr = std::shared_ptr<PipelineCache>;
+			using uptr = std::unique_ptr<PipelineLib>;
+			using sptr = std::shared_ptr<PipelineLib>;
 
 			static uptr MakeUnique(API api = API::DIRECTX_12);
 			static sptr MakeShared(API api = API::DIRECTX_12);
@@ -2145,30 +2208,8 @@ namespace XUSG
 		};
 	}
 
+	XUSG_INTERFACE uint8_t CalculateMipLevels(uint32_t width, uint32_t height, uint32_t depth = 1);
+	XUSG_INTERFACE uint8_t CalculateMipLevels(uint64_t width, uint32_t height, uint32_t depth = 1);
+	XUSG_INTERFACE uint8_t Log2(uint32_t value);
 	XUSG_INTERFACE uint32_t DivideAndRoundUp(uint32_t x, uint32_t n);
-
-	inline uint8_t Log2(uint32_t value)
-	{
-#if defined(WIN32) || (_WIN32)
-		unsigned long mssb; // most significant set bit
-
-		if (BitScanReverse(&mssb, value) > 0)
-			return static_cast<uint8_t>(mssb);
-		else return 0;
-#else
-		return static_cast<uint8_t>(log2(value));
-#endif
-	}
-
-	inline uint8_t CalculateMipLevels(uint32_t width, uint32_t height, uint32_t depth = 1)
-	{
-		const auto texSize = (std::max)((std::max)(width, height), depth);
-
-		return Log2(texSize) + 1;
-	}
-
-	inline uint8_t CalculateMipLevels(uint64_t width, uint32_t height, uint32_t depth = 1)
-	{
-		return CalculateMipLevels(static_cast<uint32_t>(width), height, depth);
-	}
 }
