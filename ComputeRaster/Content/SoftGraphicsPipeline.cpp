@@ -12,6 +12,7 @@ using namespace XUSG;
 SoftGraphicsPipeline::SoftGraphicsPipeline() :
 	m_pColorTarget(nullptr),
 	m_pDepth(nullptr),
+	m_vertexCompletions(nullptr),
 	m_maxVertexCount(0),
 	m_clearDepth(0xffffffff)
 {
@@ -105,6 +106,19 @@ bool SoftGraphicsPipeline::CreatePixelShaderLayout(Util::PipelineLayout* pPipeli
 	}
 
 	return true;
+}
+
+void SoftGraphicsPipeline::SetDecriptorHeaps(const CommandList* pCommandList)
+{
+	if (m_vertexCompletions)
+	{
+		const DescriptorHeap descriptorHeaps[] =
+		{
+			m_descriptorTableLib->GetDescriptorHeap(CBV_SRV_UAV_HEAP),
+			//m_descriptorTableCache->GetDescriptorHeap(SAMPLER_HEAP)
+		};
+		pCommandList->SetDescriptorHeaps(static_cast<uint32_t>(size(descriptorHeaps)), descriptorHeaps);
+	}
 }
 
 void SoftGraphicsPipeline::SetAttribute(uint32_t i, uint32_t stride, Format format, const wchar_t* name)
@@ -434,8 +448,7 @@ bool SoftGraphicsPipeline::createDescriptorTables()
 
 void SoftGraphicsPipeline::draw(CommandList* pCommandList, uint32_t num, StageIndex vs)
 {
-	static auto firstTime = true;
-	if (firstTime)
+	if (!m_vertexCompletions)
 	{
 		const auto pDevice = pCommandList->GetDevice();
 		m_vertexPos = StructuredBuffer::MakeUnique();
@@ -459,15 +472,9 @@ void SoftGraphicsPipeline::draw(CommandList* pCommandList, uint32_t num, StageIn
 
 		createPipelines();
 		createDescriptorTables();
-		firstTime = false;
-	}
 
-	const DescriptorPool descriptorPools[] =
-	{
-		m_descriptorTableLib->GetDescriptorPool(CBV_SRV_UAV_POOL),
-		//m_descriptorTableCache->GetDescriptorPool(SAMPLER_POOL)
-	};
-	pCommandList->SetDescriptorPools(static_cast<uint32_t>(size(descriptorPools)), descriptorPools);
+		SetDecriptorHeaps(pCommandList);
+	}
 
 	// Clear depth
 	if (m_pDepth && m_clearDepth != 0xffffffff)
