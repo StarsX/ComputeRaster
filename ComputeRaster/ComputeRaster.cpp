@@ -291,19 +291,19 @@ void ComputeRaster::ParseCommandLineArgs(wchar_t* argv[], int argc)
 
 	for (auto i = 1; i < argc; ++i)
 	{
-		if (_wcsnicmp(argv[i], L"-mesh", wcslen(argv[i])) == 0 ||
-			_wcsnicmp(argv[i], L"/mesh", wcslen(argv[i])) == 0)
+		if (wcsncmp(argv[i], L"-mesh", wcslen(argv[i])) == 0 ||
+			wcsncmp(argv[i], L"/mesh", wcslen(argv[i])) == 0)
 		{
 			if (i + 1 < argc)
 			{
-				m_meshFileName.resize(wcslen(argv[i + 1]));
+				m_meshFileName.resize(wcslen(argv[++i]));
 				for (size_t j = 0; j < m_meshFileName.size(); ++j)
-					m_meshFileName[j] = static_cast<char>(argv[i + 1][j]);
+					m_meshFileName[j] = static_cast<char>(argv[i][j]);
 			}
-			m_meshPosScale.x = i + 2 < argc ? static_cast<float>(_wtof(argv[i + 2])) : m_meshPosScale.x;
-			m_meshPosScale.y = i + 3 < argc ? static_cast<float>(_wtof(argv[i + 3])) : m_meshPosScale.y;
-			m_meshPosScale.z = i + 4 < argc ? static_cast<float>(_wtof(argv[i + 4])) : m_meshPosScale.z;
-			m_meshPosScale.w = i + 5 < argc ? static_cast<float>(_wtof(argv[i + 5])) : m_meshPosScale.w;
+			if (i + 1 < argc) m_meshPosScale.x = stof(argv[++i]);
+			if (i + 1 < argc) m_meshPosScale.y = stof(argv[++i]);
+			if (i + 1 < argc) m_meshPosScale.z = stof(argv[++i]);
+			if (i + 1 < argc) m_meshPosScale.w = stof(argv[++i]);
 			break;
 		}
 	}
