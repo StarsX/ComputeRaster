@@ -11,6 +11,7 @@
 
 #include "Optional/XUSGObjLoader.h"
 #include "ComputeRaster.h"
+#include "stb_image_write.h"
 
 using namespace std;
 using namespace XUSG;
@@ -220,6 +221,9 @@ void ComputeRaster::OnKeyUp(uint8_t key)
 	case VK_F1:
 		m_showFPS = !m_showFPS;
 		break;
+	case VK_F11:
+		m_screenShot = 1;
+		break;
 	}
 }
 
@@ -327,21 +331,30 @@ void ComputeRaster::PopulateCommandList()
 	m_renderer->Render(pCommandList, m_frameIndex);
 
 	// Copy to back buffer.
+	const auto pRenderTarget = m_renderTargets[m_frameIndex].get();
 	{
 		const auto pColorTarget = m_renderer->GetColorTarget();
-		const TextureCopyLocation dst(m_renderTargets[m_frameIndex].get(), 0);
+		const TextureCopyLocation dst(pRenderTarget, 0);
 		const TextureCopyLocation src(pColorTarget, 0);
 
 		ResourceBarrier barriers[2];
-		auto numBarriers = m_renderTargets[m_frameIndex]->SetBarrier(barriers, ResourceState::COPY_DEST);
+		auto numBarriers = pRenderTarget->SetBarrier(barriers, ResourceState::COPY_DEST);
 		numBarriers = pColorTarget->SetBarrier(barriers, ResourceState::COPY_SOURCE, numBarriers);
 		pCommandList->Barrier(numBarriers, barriers);
 
 		pCommandList->CopyTextureRegion(dst, 0, 0, 0, src);
 
 		// Indicate that the back buffer will now be used to present.
-		numBarriers = m_renderTargets[m_frameIndex]->SetBarrier(barriers, ResourceState::PRESENT);
+		numBarriers = pRenderTarget->SetBarrier(barriers, ResourceState::PRESENT);
 		pCommandList->Barrier(numBarriers, barriers);
+	}
+
+	// Screen-shot helper
+	if (m_screenShot == 1)
+	{
+		if (!m_readBuffer) m_readBuffer = Buffer::MakeUnique();
+		pRenderTarget->ReadBack(pCommandList, m_readBuffer.get());
+		m_screenShot = 2;
 	}
 
 	XUSG_N_RETURN(pCommandList->Close(), ThrowIfFailed(E_FAIL));
@@ -380,6 +393,37 @@ void ComputeRaster::MoveToNextFrame()
 
 	// Set the fence value for the next frame.
 	m_fenceValues[m_frameIndex] = currentFenceValue + 1;
+
+	// Screen-shot helper
+	if (m_screenShot)
+	{
+		if (m_screenShot > SoftGraphicsPipeline::FrameCount)
+		{
+			char timeStr[15];
+			tm dateTime;
+			const auto now = time(nullptr);
+			if (!localtime_s(&dateTime, &now) && strftime(timeStr, sizeof(timeStr), "%Y%m%d%H%M%S", &dateTime))
+				SaveImage((string("ComputeRaster_") + timeStr + ".png").c_str(), m_readBuffer.get(), m_width, m_height);
+			m_screenShot = 0;
+		}
+		else ++m_screenShot;
+	}
+}
+
+void ComputeRaster::SaveImage(char const* fileName, Buffer* imageBuffer, uint32_t w, uint32_t h, uint8_t comp)
+{
+	assert(comp == 3 || comp == 4);
+	const auto pData = static_cast<uint8_t*>(imageBuffer->Map());
+
+	//stbi_write_png_compression_level = 1024;
+	vector<uint8_t> imageData(comp * w * h);
+	for (auto i = 0u; i < w * h; ++i)
+		for (uint8_t j = 0; j < comp; ++j)
+			imageData[comp * i + j] = pData[4 * i + j];
+
+	stbi_write_png(fileName, w, h, comp, imageData.data(), 0);
+
+	m_readBuffer->Unmap();
 }
 
 double ComputeRaster::CalculateFrameStats(float* pTimeStep)
@@ -404,6 +448,9 @@ double ComputeRaster::CalculateFrameStats(float* pTimeStep)
 		windowText << L"    fps: ";
 		if (m_showFPS) windowText << setprecision(2) << fixed << fps;
 		else windowText << L"[F1]";
+
+		windowText << L"    [F11] screen shot";
+
 		SetCustomWindowText(windowText.str().c_str());
 	}
 

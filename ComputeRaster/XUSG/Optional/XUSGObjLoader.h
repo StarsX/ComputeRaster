@@ -26,7 +26,7 @@ namespace XUSG
 		virtual ~ObjLoader();
 
 		bool Import(const char* pszFilename, bool needNorm = true,
-			bool needBound = true, bool forDX = true);
+			bool needBound = true, bool forDX = true, bool swapYZ = false);
 
 		const uint32_t GetNumVertices() const;
 		const uint32_t GetNumIndices() const;
@@ -39,7 +39,7 @@ namespace XUSG
 
 	protected:
 		void importGeometryFirstPass(FILE* pFile, uint32_t& numTexc, uint32_t& numNorm);
-		void importGeometrySecondPass(FILE* pFile, uint32_t numTexc, uint32_t numNorm, bool forDX);
+		void importGeometrySecondPass(FILE* pFile, uint32_t numTexc, uint32_t numNorm, bool forDX, bool swapYZ);
 		void loadIndices(FILE* pFile, uint32_t& numTri, uint32_t numTexc, uint32_t numNorm,
 			std::vector<uint32_t>& nIndices, std::vector<uint32_t>& tIndices);
 		void computePerVertexNormals(const std::vector<float3>& normals, const std::vector<uint32_t>& nIndices);

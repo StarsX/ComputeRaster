@@ -15,7 +15,7 @@ ObjLoader::~ObjLoader()
 {
 }
 
-bool ObjLoader::Import(const char* pszFilename, bool needNorm, bool needBound, bool forDX)
+bool ObjLoader::Import(const char* pszFilename, bool needNorm, bool needBound, bool forDX, bool swapYZ)
 {
 	FILE* pFile;
 	fopen_s(&pFile, pszFilename, "r");
@@ -29,7 +29,7 @@ bool ObjLoader::Import(const char* pszFilename, bool needNorm, bool needBound, b
 	uint32_t numTexc, numNorm;
 	importGeometryFirstPass(pFile, numTexc, numNorm);
 	rewind(pFile);
-	importGeometrySecondPass(pFile, numTexc, numNorm, forDX);
+	importGeometrySecondPass(pFile, numTexc, numNorm, forDX, swapYZ);
 	fclose(pFile);
 
 	// Perform post import tasks.
@@ -168,7 +168,7 @@ void ObjLoader::importGeometryFirstPass(FILE* pFile, uint32_t& numTexc, uint32_t
 	m_indices.resize(numIdx);
 }
 
-void ObjLoader::importGeometrySecondPass(FILE* pFile, uint32_t numTexc, uint32_t numNorm, bool forDX)
+void ObjLoader::importGeometrySecondPass(FILE* pFile, uint32_t numTexc, uint32_t numNorm, bool forDX, bool swapYZ)
 {
 	auto numVert = 0u;
 	auto numTri = 0u;
@@ -194,6 +194,12 @@ void ObjLoader::importGeometrySecondPass(FILE* pFile, uint32_t numTexc, uint32_t
 			{
 				auto& p = getPosition(numVert++);
 				fscanf_s(pFile, "%f %f %f", &p.x, &p.y, &p.z);
+				if (swapYZ)
+				{
+					const auto tmp = p.y;
+					p.y = p.z;
+					p.z = tmp;
+				}
 				p.z = forDX ? -p.z : p.z;
 				break;
 			}
@@ -203,6 +209,12 @@ void ObjLoader::importGeometrySecondPass(FILE* pFile, uint32_t numTexc, uint32_t
 					&normals.back().x,
 					&normals.back().y,
 					&normals.back().z);
+				if (swapYZ)
+				{
+					const auto tmp = normals.back().y;
+					normals.back().y = normals.back().z;
+					normals.back().z = tmp;
+				}
 				normals.back().z = forDX ? -normals.back().z : normals.back().z;
 			default:
 				break;
@@ -217,7 +229,7 @@ void ObjLoader::importGeometrySecondPass(FILE* pFile, uint32_t numTexc, uint32_t
 
 	computePerVertexNormals(normals, nIndices);
 
-	if (forDX) reverse(m_indices.begin(), m_indices.end());
+	if ((forDX && !swapYZ) || (!forDX && swapYZ)) reverse(m_indices.begin(), m_indices.end());
 }
 
 void ObjLoader::loadIndices(FILE* pFile, uint32_t& numTri, uint32_t numTexc,

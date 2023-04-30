@@ -65,6 +65,9 @@ private:
 	XUSG::Fence::uptr m_fence;
 	uint64_t	m_fenceValues[SoftGraphicsPipeline::FrameCount];
 
+	// Screen-shot helper
+	XUSG::Buffer::uptr		m_readBuffer;
+
 	// Application state
 	bool		m_showFPS;
 	bool		m_pausing;
@@ -78,11 +81,15 @@ private:
 	std::string m_meshFileName;
 	XMFLOAT4 m_meshPosScale;
 
+	// Screen-shot state
+	uint8_t		m_screenShot;
+
 	void LoadPipeline();
 	void LoadAssets();
 
 	void PopulateCommandList();
 	void WaitForGpu();
 	void MoveToNextFrame();
+	void SaveImage(char const* fileName, XUSG::Buffer* imageBuffer, uint32_t w, uint32_t h, uint8_t comp = 3);
 	double CalculateFrameStats(float* fTimeStep = nullptr);
 };
