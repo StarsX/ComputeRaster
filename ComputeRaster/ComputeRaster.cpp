@@ -353,7 +353,7 @@ void ComputeRaster::PopulateCommandList()
 	if (m_screenShot == 1)
 	{
 		if (!m_readBuffer) m_readBuffer = Buffer::MakeUnique();
-		pRenderTarget->ReadBack(pCommandList, m_readBuffer.get());
+		pRenderTarget->ReadBack(pCommandList, m_readBuffer.get(), &m_rowPitch);
 		m_screenShot = 2;
 	}
 
@@ -403,23 +403,29 @@ void ComputeRaster::MoveToNextFrame()
 			tm dateTime;
 			const auto now = time(nullptr);
 			if (!localtime_s(&dateTime, &now) && strftime(timeStr, sizeof(timeStr), "%Y%m%d%H%M%S", &dateTime))
-				SaveImage((string("ComputeRaster_") + timeStr + ".png").c_str(), m_readBuffer.get(), m_width, m_height);
+				SaveImage((string("ComputeRaster_") + timeStr + ".png").c_str(), m_readBuffer.get(), m_width, m_height, m_rowPitch);
 			m_screenShot = 0;
 		}
 		else ++m_screenShot;
 	}
 }
 
-void ComputeRaster::SaveImage(char const* fileName, Buffer* imageBuffer, uint32_t w, uint32_t h, uint8_t comp)
+void ComputeRaster::SaveImage(char const* fileName, Buffer* imageBuffer, uint32_t w, uint32_t h, uint32_t rowPitch, uint8_t comp)
 {
 	assert(comp == 3 || comp == 4);
-	const auto pData = static_cast<uint8_t*>(imageBuffer->Map());
+	const auto pData = static_cast<uint8_t*>(imageBuffer->Map(nullptr));
 
 	//stbi_write_png_compression_level = 1024;
 	vector<uint8_t> imageData(comp * w * h);
-	for (auto i = 0u; i < w * h; ++i)
-		for (uint8_t j = 0; j < comp; ++j)
-			imageData[comp * i + j] = pData[4 * i + j];
+	const auto sw = rowPitch / 4;
+	for (auto i = 0u; i < h; ++i)
+		for (auto j = 0u; j < w; ++j)
+		{
+			const auto s = sw * i + j;
+			const auto d = w * i + j;
+			for (uint8_t k = 0; k < comp; ++k)
+				imageData[comp * d + k] = pData[4 * s + k];
+		}
 
 	stbi_write_png(fileName, w, h, comp, imageData.data(), 0);
 
