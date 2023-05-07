@@ -89,7 +89,7 @@ private:
 	void PopulateCommandList();
 	void WaitForGpu();
 	void MoveToNextFrame();
-	void SaveImage(char const* fileName, XUSG::Buffer* imageBuffer,
+	void SaveImage(char const* fileName, XUSG::Buffer* pImageBuffer,
 		uint32_t w, uint32_t h, uint32_t rowPitch, uint8_t comp = 3);
 	double CalculateFrameStats(float* fTimeStep = nullptr);
 };

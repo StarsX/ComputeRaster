@@ -110,6 +110,9 @@
     <ClCompile Include="XUSG\Optional\XUSGObjLoader.cpp">
       <Filter>XUSG\Optional</Filter>
     </ClCompile>
+    <ClCompile Include="Common\stb_image_write.cpp">
+      <Filter>Common\Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Content\Shaders\VertexShader.hlsl">
