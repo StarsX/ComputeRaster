@@ -22,11 +22,17 @@ namespace XUSG
 			float3& operator= (const float3& Float3) { x = Float3.x; y = Float3.y; z = Float3.z; return *this; }
 		};
 
+		struct AABB
+		{
+			float3 Min;
+			float3 Max;
+		};
+
 		ObjLoader();
 		virtual ~ObjLoader();
 
 		bool Import(const char* pszFilename, bool needNorm = true,
-			bool needBound = true, bool forDX = true, bool swapYZ = false);
+			bool needAABB = true, bool forDX = true, bool swapYZ = false);
 
 		const uint32_t GetNumVertices() const;
 		const uint32_t GetNumIndices() const;
@@ -34,8 +40,7 @@ namespace XUSG
 		const uint8_t* GetVertices() const;
 		const uint32_t* GetIndices() const;
 
-		const float3& GetCenter() const;
-		const float GetRadius() const;
+		const AABB& GetAABB() const;
 
 	protected:
 		void importGeometryFirstPass(FILE* pFile, uint32_t& numTexc, uint32_t& numNorm);
@@ -44,7 +49,7 @@ namespace XUSG
 			std::vector<uint32_t>& nIndices, std::vector<uint32_t>& tIndices);
 		void computePerVertexNormals(const std::vector<float3>& normals, const std::vector<uint32_t>& nIndices);
 		void recomputeNormals();
-		void computeBound();
+		void computeAABB();
 
 		void* getVertex(uint32_t i);
 		float3& getPosition(uint32_t i);
@@ -55,7 +60,6 @@ namespace XUSG
 
 		uint32_t	m_stride;
 
-		float3		m_center;
-		float		m_radius;
+		AABB		m_aabb;
 	};
 }

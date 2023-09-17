@@ -15,7 +15,7 @@ ObjLoader::~ObjLoader()
 {
 }
 
-bool ObjLoader::Import(const char* pszFilename, bool needNorm, bool needBound, bool forDX, bool swapYZ)
+bool ObjLoader::Import(const char* pszFilename, bool needNorm, bool needAABB, bool forDX, bool swapYZ)
 {
 	FILE* pFile;
 	fopen_s(&pFile, pszFilename, "r");
@@ -34,7 +34,7 @@ bool ObjLoader::Import(const char* pszFilename, bool needNorm, bool needBound, b
 
 	// Perform post import tasks.
 	if (needNorm && !numNorm) recomputeNormals();
-	if (needBound) computeBound();
+	if (needAABB) computeAABB();
 
 	return true;
 }
@@ -64,14 +64,9 @@ const uint32_t* ObjLoader::GetIndices() const
 	return m_indices.data();
 }
 
-const ObjLoader::float3& ObjLoader::GetCenter() const
+const ObjLoader::AABB& ObjLoader::GetAABB() const
 {
-	return m_center;
-}
-
-const float ObjLoader::GetRadius() const
-{
-	return m_radius;
+	return m_aabb;
 }
 
 void ObjLoader::importGeometryFirstPass(FILE* pFile, uint32_t& numTexc, uint32_t& numNorm)
@@ -388,7 +383,7 @@ void ObjLoader::recomputeNormals()
 	}
 }
 
-void ObjLoader::computeBound()
+void ObjLoader::computeAABB()
 {
 	float xMax, xMin, yMax, yMin, zMax, zMin;
 	const auto& p = getPosition(0);
@@ -416,15 +411,8 @@ void ObjLoader::computeBound()
 		else if (z > zMax) zMax = z;
 	}
 
-	m_center.x = (xMin + xMax) / 2.0f;
-	m_center.y = (yMin + yMax) / 2.0f;
-	m_center.z = (zMin + zMax) / 2.0f;
-
-	const auto fWidth = xMax - xMin;
-	const auto fHeight = yMax - yMin;
-	const auto fLength = zMax - zMin;
-
-	m_radius = max(max(fWidth, fHeight), fLength) * 0.5f;
+	m_aabb.Min = float3(xMin, yMin, zMin);
+	m_aabb.Max = float3(xMax, yMax, zMax);
 }
 
 void* ObjLoader::getVertex(uint32_t i)

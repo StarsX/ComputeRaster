@@ -75,9 +75,6 @@
     <ClInclude Include="Common\d3dcommon.h">
       <Filter>Common\Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Common\dxgicommon.h">
-      <Filter>Common\Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Common\dxgiformat.h">
       <Filter>Common\Header Files</Filter>
     </ClInclude>
