@@ -30,7 +30,7 @@ bool SoftGraphicsPipeline::Init(CommandList* pCommandList, vector<Resource::uptr
 	m_descriptorTableLib = DescriptorTableLib::MakeUnique(pDevice);
 	m_pipelineLayoutLib = PipelineLayoutLib::MakeUnique(pDevice);
 
-	const uint32_t tileBufferSize = (UINT32_MAX >> 4) + 1;
+	const uint32_t tileBufferSize = (UINT32_MAX >> 8) + 1;
 	const uint32_t binBufferSize = tileBufferSize >> 6;
 
 	// Create buffers
