@@ -26,7 +26,7 @@ public:
 	bool CreatePixelShaderLayout(XUSG::Util::PipelineLayout* pPipelineLayout,
 		bool hasDepth, uint32_t numRTs, uint32_t slotCount = 0, int32_t cbvBindingMax = -1,
 		int32_t srvBindingMax = -1, int32_t uavBindingMax = -1);
-	void SetDecriptorHeaps(const XUSG::CommandList* pCommandList);
+	void SetDecriptorHeaps(XUSG::CommandList* pCommandList);
 	void SetAttribute(uint32_t i, uint32_t stride, XUSG::Format format, const wchar_t* name = L"Attribute");
 	void SetVertexBuffer(const XUSG::Descriptor& vertexBufferView);
 	void SetIndexBuffer(const XUSG::Descriptor& indexBufferView);

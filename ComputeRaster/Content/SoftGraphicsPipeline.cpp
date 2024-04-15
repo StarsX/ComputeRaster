@@ -108,7 +108,7 @@ bool SoftGraphicsPipeline::CreatePixelShaderLayout(Util::PipelineLayout* pPipeli
 	return true;
 }
 
-void SoftGraphicsPipeline::SetDecriptorHeaps(const CommandList* pCommandList)
+void SoftGraphicsPipeline::SetDecriptorHeaps(CommandList* pCommandList)
 {
 	if (m_vertexCompletions)
 	{
