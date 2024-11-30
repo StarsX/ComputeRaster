@@ -29,8 +29,8 @@ public:
         QueryPerformanceFrequency(&m_qpcFrequency);
         QueryPerformanceCounter(&m_qpcLastTime);
 
-        // Initialize max delta to 1/10 of a second.
-        m_qpcMaxDelta = m_qpcFrequency.QuadPart / 10;
+        // Initialize max delta to a second.
+        m_qpcMaxDelta = m_qpcFrequency.QuadPart;
     }
 
     // Get elapsed time since the previous Update call.
