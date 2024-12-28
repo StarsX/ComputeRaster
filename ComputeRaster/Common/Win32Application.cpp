@@ -14,7 +14,7 @@
 
 HWND Win32Application::m_hwnd = nullptr;
 
-int Win32Application::Run(DXFramework *pFramework, HINSTANCE hInstance, int nCmdShow)
+int Win32Application::Run(DXFramework *pFramework, HINSTANCE hInstance, int nCmdShow, HICON hIcon)
 {
 	// Parse the command line parameters
 	int argc;
@@ -48,6 +48,12 @@ int Win32Application::Run(DXFramework *pFramework, HINSTANCE hInstance, int nCmd
 		nullptr,		// We aren't using menus.
 		hInstance,
 		pFramework);
+
+	if (hIcon)
+	{
+		SendMessage(m_hwnd, WM_SETICON, ICON_BIG, (LPARAM)hIcon);
+		SendMessage(m_hwnd, WM_SETICON, ICON_SMALL, (LPARAM)hIcon);
+	}
 
 	// Initialize the sample. OnInit is defined in each child-implementation of DXSample.
 	pFramework->OnInit();

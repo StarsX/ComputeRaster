@@ -18,7 +18,7 @@ class DXFramework;
 class Win32Application
 {
 public:
-	static int Run(DXFramework *pFramework, HINSTANCE hInstance, int nCmdShow);
+	static int Run(DXFramework *pFramework, HINSTANCE hInstance, int nCmdShow, HICON hIcon = nullptr);
 	static HWND GetHwnd() { return m_hwnd; }
 
 protected:
